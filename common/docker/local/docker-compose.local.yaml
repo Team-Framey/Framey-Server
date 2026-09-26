@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: framey-local-postgres
+
+    ports:
+      - "5432:5432"
+
+    environment:
+      POSTGRES_DB: framey_local
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+
+    volumes:
+      - framey-postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U framey -d framey_local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  framey-postgres-data:
