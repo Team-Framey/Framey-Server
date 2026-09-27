@@ -60,6 +60,33 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.IMAGE_NAME }}:latest
 
+      - name: 임시 디버그 - 확인 후 제거
+        run: |
+          set -euo pipefail
+
+          # audience=sts.amazonaws.com 으로 OIDC JWT 발급 (토큰 원문은 어떤 경우에도 로그에 남기지 않음)
+          OIDC_RESPONSE=$(curl -sS \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
+          JWT=$(echo "$OIDC_RESPONSE" | jq -r '.value')
+
+          # JWT payload(가운데 세그먼트)만 추출 후 base64url -> base64 보정(문자 치환 + 패딩)
+          PAYLOAD_B64=$(echo "$JWT" | cut -d '.' -f2)
+          PAYLOAD_B64="${PAYLOAD_B64//-/+}"
+          PAYLOAD_B64="${PAYLOAD_B64//_/\/}"
+          case $(( ${#PAYLOAD_B64} % 4 )) in
+            2) PAYLOAD_B64="${PAYLOAD_B64}==" ;;
+            3) PAYLOAD_B64="${PAYLOAD_B64}=" ;;
+          esac
+          PAYLOAD_JSON=$(echo "$PAYLOAD_B64" | base64 -d)
+
+          # 필요한 클레임만 출력 (payload 전체나 JWT 원문은 출력하지 않음)
+          echo "sub: $(echo "$PAYLOAD_JSON" | jq -r '.sub')"
+          echo "aud: $(echo "$PAYLOAD_JSON" | jq -r '.aud')"
+          echo "repository: $(echo "$PAYLOAD_JSON" | jq -r '.repository')"
+          echo "repository_owner: $(echo "$PAYLOAD_JSON" | jq -r '.repository_owner')"
+          echo "ref: $(echo "$PAYLOAD_JSON" | jq -r '.ref')"
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
