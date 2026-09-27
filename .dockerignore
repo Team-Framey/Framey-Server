@@ -1,0 +1,11 @@
+# 기본적으로 전체 빌드 컨텍스트를 제외
+*
+
+# app.jar 로 가는 경로만 단계별로 다시 포함 (그 외 파일은 여전히 제외 상태 유지)
+!app
+app/*
+!app/build
+app/build/*
+!app/build/libs
+app/build/libs/*
+!app/build/libs/app.jar
