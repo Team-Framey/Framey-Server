@@ -1,0 +1,582 @@
+# Framey Logging System 가이드
+
+> 작성일: 2026.09.27  
+> 작성자: [@young0311](https://github.com/young0311)
+
+`common-monitoring` 모듈은 Framey 서비스 전체에서 공통으로 사용하는 로깅 기능을 제공합니다.  
+본 문서는 `common-monitoring`을 새 서비스 모듈에 적용하는 방법과 로그 작성 규칙을 정리합니다.
+
+## 1. 제공 기능
+
+`common-monitoring`은 다음 기능을 자동으로 제공합니다.
+
+- **TraceId 생성 및 전파**
+  - HTTP 요청마다 고유한 TraceId를 생성합니다.
+  - MDC를 통해 요청 전체에 동일한 TraceId를 전파합니다.
+  - 응답 Header(`X-Trace-Id`)에 TraceId를 포함합니다.
+- **주요 비즈니스 활동 자동 로깅**
+  - `@LogActivity`가 붙은 메서드의 시작/성공/실패와 실행 시간을 자동으로 기록합니다.
+- **공통 Logback 설정**
+  - Console과 File 출력 형식, Rolling 정책 등을 공통으로 관리합니다.
+- **Auto Configuration**
+  - `MonitoringAutoConfiguration`이 `TraceIdFilter`와 `LogActivityAspect`를 자동으로 Bean으로 등록합니다.
+
+## 2. 새 서비스 모듈에 적용하기
+
+### 2.1 `settings.gradle`에 모듈 등록
+
+루트 `settings.gradle`에 새 모듈을 추가합니다.
+
+```gradle
+rootProject.name = 'server'
+
+include ':common:common-monitoring'
+include ':photo:photo-api'
+```
+
+### 2.2 `build.gradle`에 의존성 추가
+
+실행 모듈의 `build.gradle`에 `common-monitoring`을 의존성으로 추가합니다.
+
+```gradle
+dependencies {
+    implementation project(':common:common-monitoring')
+}
+```
+
+추가하면 아래 기능을 별도 Bean 등록 없이 사용할 수 있습니다.
+
+- `@LogActivity`
+- `TraceIdFilter`
+- `LogActivityAspect`
+- Framey 공통 Logback 설정
+
+### 2.3 `application.yml`에 서비스 이름 지정
+
+각 실행 모듈은 반드시 자신의 애플리케이션 이름을 지정해야 합니다.  
+이 이름은 Console 및 File 로그에 `[서비스명]` 형태로 출력됩니다.
+
+```yaml
+spring:
+  application:
+    name: photo-api
+```
+
+예를 들어 `spring.application.name=photo-api`라면 로그는 다음과 같이 출력됩니다.
+
+```text
+20:31:12.123 INFO  [photo-api] [a72bc981] ...
+```
+
+### 2.4 Logback 설정
+
+`common-monitoring`에 기본 `logback-spring.xml`이 포함되어 있으므로,  
+별도의 Logback 파일이 없어도 공통 설정이 자동으로 적용됩니다.
+
+서비스에서 별도의 `logback-spring.xml`을 추가하면,  
+`common-monitoring`의 기본 설정 대신 해당 설정이 적용됩니다.
+
+## 3. 공통 Logback 설정
+
+공통 Logback 설정은 다음 위치에 있습니다.
+
+```text
+common/common-monitoring/
+└── src/main/resources/
+    └── logback-spring.xml
+```
+
+주요 설정은 다음과 같습니다.
+
+- Console과 File에 동시에 출력합니다.
+- Console에는 색상(`highlight`, `magenta`, `cyan`)을 적용합니다.
+- File은 `logs/${APP_NAME}.log`에 기록합니다.
+- File Rolling 정책
+  - 최대 파일 크기: `10MB`
+  - 보관 기간: `14일`
+- `com.framey` 패키지는 `DEBUG` 레벨로 출력합니다.
+- 기본 루트 레벨은 `INFO`입니다.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <springProperty
+            scope="context"
+            name="APP_NAME"
+            source="spring.application.name"
+            defaultValue="framey-service"
+    />
+
+    <property
+            name="CONSOLE_LOG_PATTERN"
+            value="%d{HH:mm:ss.SSS,Asia/Seoul} %highlight(%-5level) %magenta([${APP_NAME}]) %cyan([%X{traceId:-none}]) %logger{36} - %msg%n"
+    />
+
+    <property
+            name="FILE_LOG_PATTERN"
+            value="%d{yyyy-MM-dd HH:mm:ss.SSS,Asia/Seoul} [${APP_NAME}] [%X{traceId:-none}] %-5level %logger{36} - %msg%n"
+    />
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/${APP_NAME}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/${APP_NAME}-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>14</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <logger name="com.framey" level="DEBUG"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+
+</configuration>
+```
+
+## 4. `@LogActivity` 사용 방법
+
+주요 비즈니스 메서드에 `@LogActivity("활동명")`을 선언합니다.
+
+```java
+@LogActivity("사진 업로드")
+public PhotoResponse upload(PhotoRequest request) {
+    return photoUploader.upload(request);
+}
+```
+
+`LogActivityAspect`가 메서드 실행 전후를 감싸서 다음을 자동으로 기록합니다.
+
+- `[START] 활동명`
+- `[SUCCESS] 활동명 | elapsed=...ms`
+- `[FAIL] 활동명 | elapsed=...ms` (예외 발생 시)
+
+### 성공했을 때
+
+```text
+20:31:12.102 INFO  [photo-api] [a72bc981] c.f.m.aspect.LogActivityAspect - [START] 사진 업로드
+20:31:12.351 INFO  [photo-api] [a72bc981] c.f.m.aspect.LogActivityAspect - [SUCCESS] 사진 업로드 | elapsed=249ms
+```
+
+### 실패했을 때
+
+```text
+20:32:04.102 INFO  [photo-api] [c128ab31] c.f.m.aspect.LogActivityAspect - [START] 사진 업로드
+
+20:32:04.183 ERROR [photo-api] [c128ab31] c.f.m.aspect.LogActivityAspect - [FAIL] 사진 업로드 | elapsed=81ms
+java.lang.IllegalStateException: 이미지 저장 실패
+    at com.framey.photo.service.PhotoService.upload(PhotoService.java:42)
+    ...
+```
+
+`[FAIL]` 로그에는 예외 객체를 함께 전달하므로 Stack Trace가 함께 출력됩니다.
+
+### 로그 필드 의미
+
+```text
+20:31:12.351        → 로그 발생 시간
+INFO                → 로그 레벨
+[photo-api]         → spring.application.name
+[a72bc981]          → TraceId
+c.f.m.aspect.LogActivityAspect → 로그를 출력한 Logger
+[SUCCESS]           → 작업 결과
+사진 업로드         → @LogActivity에 지정한 활동명
+elapsed=249ms       → 메서드 실행 시간
+```
+
+## 5. `@LogActivity` 사용 기준
+
+`@LogActivity`는 모든 메서드에 붙이는 어노테이션이 아닙니다.  
+사용자가 수행하는 주요 비즈니스 행위나 운영 중 추적할 가치가 있는 작업에 사용합니다.
+
+### 사용 권장
+
+```java
+@LogActivity("사진 업로드")
+public PhotoResponse upload(...) { }
+
+@LogActivity("콜라주 생성")
+public CollageResponse createCollage(...) { }
+
+@LogActivity("회원 가입")
+public MemberResponse signup(...) { }
+
+@LogActivity("이미지 변환")
+public ImageResponse convert(...) { }
+```
+
+### 사용하지 않는 것이 좋은 경우
+
+```java
+// 단순 Getter
+@LogActivity("회원 이름 조회")
+public String getName() { return name; }
+
+// 단순 Mapper
+@LogActivity("DTO 변환")
+public PhotoResponse toResponse(Photo photo) { ... }
+
+// 단순 내부 유틸리티
+@LogActivity("파일명 생성")
+private String createFileName() { ... }
+```
+
+이런 메서드까지 기록하면 중요한 로그가 많은 로그에 묻힐 수 있습니다.  
+기본적으로 **주요 Service 비즈니스 작업 단위**를 기준으로 사용합니다.
+
+## 6. TraceId 동작 방식
+
+HTTP 요청이 들어오면 `TraceIdFilter`가 요청마다 새로운 TraceId를 생성합니다.
+
+```text
+a72bc981
+```
+
+TraceId는 다음 흐름으로 전파됩니다.
+
+```text
+HTTP Request
+      ↓
+TraceIdFilter
+      ↓
+TraceId 생성 (a72bc981)
+      ↓
+MDC 저장
+      ↓
+Controller
+      ↓
+Service
+      ↓
+Repository
+      ↓
+HTTP Response
+```
+
+해당 요청을 처리하는 동안 발생한 모든 로그에는 동일한 TraceId가 포함됩니다.
+
+```text
+20:40:01.012 INFO  [photo-api] [a72bc981] ... - 요청 처리
+20:40:01.032 INFO  [photo-api] [a72bc981] ... - [START] 사진 업로드
+20:40:01.201 DEBUG [photo-api] [a72bc981] ... - 이미지 저장
+20:40:01.291 INFO  [photo-api] [a72bc981] ... - [SUCCESS] 사진 업로드 | elapsed=259ms
+```
+
+## 7. HTTP Response에 TraceId 포함
+
+생성된 TraceId는 HTTP 응답 헤더에도 포함됩니다.
+
+```http
+X-Trace-Id: a72bc981
+```
+
+클라이언트가 API 호출 중 오류를 만났을 때 `X-Trace-Id` 값을 확인하면,  
+서버 로그에서 같은 TraceId를 검색해 해당 요청의 전체 흐름을 빠르게 찾을 수 있습니다.
+
+## 8. 직접 로그를 작성해야 하는 경우
+
+`@LogActivity`가 모든 로그를 대신하지 않습니다.  
+공통 모듈은 다음을 자동으로 기록합니다.
+
+- 작업 시작 / 성공 / 실패
+- 작업 수행 시간
+- TraceId
+
+비즈니스 로직 내부에서 발생한 의미 있는 상태나 이벤트는 개발자가 직접 기록합니다.
+
+```java
+log.warn(
+    "일부 이미지 처리 실패. requestedCount={}, failedCount={}",
+    requestedCount,
+    failedCount
+);
+```
+
+콘솔:
+
+```text
+20:41:21.301 WARN [photo-api] [a72bc981] c.f.photo.PhotoService - 일부 이미지 처리 실패. requestedCount=6, failedCount=2
+```
+
+## 9. Log Level 사용 기준
+
+### DEBUG
+
+개발 및 문제 분석을 위한 상세 정보에 사용합니다.
+
+```java
+log.debug("레이아웃 조회. layoutId={}", layoutId);
+```
+
+운영 흐름을 이해하는 데 반드시 필요한 정보에는 사용하지 않습니다.
+
+### INFO
+
+정상적인 주요 비즈니스 흐름에 사용합니다.
+
+```java
+log.info("콜라주 생성 완료. collageId={}", collageId);
+```
+
+`@LogActivity`의 `[START]` / `[SUCCESS]` 로그도 `INFO`로 출력됩니다.
+
+### WARN
+
+요청 자체는 계속 처리할 수 있지만 확인이 필요한 상황에 사용합니다.
+
+```java
+log.warn("이미지 일부 처리 실패. failedCount={}", failedCount);
+```
+
+예시:
+
+- 재시도 발생
+- 일부 데이터 처리 실패
+- Fallback 수행
+- 예상하지 않은 입력이지만 복구 가능
+
+### ERROR
+
+현재 작업이나 요청이 정상적으로 완료되지 못한 경우 사용합니다.
+
+```java
+log.error("이미지 저장 실패. imageId={}", imageId, exception);
+```
+
+`@LogActivity` 실행 중 예외가 발생하면 `[FAIL]` 로그가 `ERROR`로 자동 기록됩니다.
+
+## 10. 로그 작성 권장 형식
+
+값의 의미가 명확하도록 `key=value` 형태를 사용합니다.
+
+권장:
+
+```java
+log.info("콜라주 생성 완료. collageId={}, imageCount={}", collageId, imageCount);
+```
+
+결과:
+
+```text
+콜라주 생성 완료. collageId=123, imageCount=6
+```
+
+다음과 같이 값만 나열하는 방식은 지양합니다.
+
+```java
+log.info("콜라주 생성 완료 {} {}", collageId, imageCount);
+```
+
+로그만 보고 각 값의 의미를 알기 어렵기 때문입니다.
+
+## 11. 로그에 남기지 않을 정보
+
+다음 정보는 로그에 직접 기록하지 않습니다.
+
+- Password
+- Access Token
+- Refresh Token
+- Authorization Header
+- Cookie / Session 정보
+- 개인정보
+- 전체 Request Body
+- 파일 Binary 데이터
+
+특히 다음과 같은 코드는 사용하지 않습니다.
+
+```java
+log.info("login request={}", request);
+```
+
+Request DTO에 비밀번호 등이 포함되어 있을 수 있기 때문입니다.  
+필요한 값만 명시적으로 선택하여 기록합니다.
+
+```java
+log.info("로그인 요청. memberId={}", memberId);
+```
+
+## 12. Console / File 로그 형식
+
+### Console Log
+
+기본 Console Log 형식은 다음과 같습니다.
+
+```text
+시간 LEVEL [Application] [TraceId] Logger - Message
+```
+
+예시:
+
+```text
+20:45:31.032 INFO  [photo-api] [a72bc981] c.f.m.aspect.LogActivityAspect - [START] 사진 업로드
+```
+
+로그 레벨은 IntelliJ Console에서 색상으로 구분됩니다.
+
+### File Log
+
+Console 출력과 함께 로그 파일도 자동으로 생성됩니다.
+
+`spring.application.name=photo-api`라면:
+
+```text
+logs/
+└── photo-api.log
+```
+
+파일 로그는 날짜와 크기를 기준으로 Rolling됩니다.
+
+```text
+logs/
+├── photo-api.log
+├── photo-api-2026-09-27.0.log
+├── photo-api-2026-09-27.1.log
+└── photo-api-2026-09-28.0.log
+```
+
+현재 설정:
+
+- 최대 파일 크기: `10MB`
+- 보관 기간: `14일`
+
+## 13. 새 모듈 적용 체크리스트
+
+새로운 Spring Boot 서비스 모듈을 생성했다면 다음 항목을 확인합니다.
+
+1. `settings.gradle` 등록
+   ```gradle
+   include ':photo:photo-api'
+   ```
+2. `common-monitoring` 의존성 추가
+   ```gradle
+   dependencies {
+       implementation project(':common:common-monitoring')
+   }
+   ```
+3. `application.yml`에 서비스 이름 지정
+   ```yaml
+   spring:
+     application:
+       name: photo-api
+   ```
+4. 주요 비즈니스 로직에 `@LogActivity` 적용
+   ```java
+   @LogActivity("사진 업로드")
+   public PhotoResponse upload(...) {
+       ...
+   }
+   ```
+
+`common-monitoring`의 Logback 설정은 별도 파일 없이 자동으로 적용됩니다.
+
+## 14. 전체 동작 예시
+
+사용자가 다음 API를 호출했다고 가정합니다.
+
+```http
+POST /api/photos
+```
+
+Service:
+
+```java
+@LogActivity("사진 업로드")
+public PhotoResponse upload(PhotoRequest request) {
+
+    log.debug("업로드 이미지 검증. imageCount={}", request.getImages().size());
+
+    PhotoResponse response = photoUploader.upload(request);
+
+    log.info("사진 저장 완료. photoId={}", response.getId());
+
+    return response;
+}
+```
+
+전체 처리 흐름은 다음과 같습니다.
+
+```text
+POST /api/photos
+       │
+       ▼
+TraceIdFilter
+       │
+       ├── TraceId 생성: a72bc981
+       ├── MDC 저장
+       └── Response X-Trace-Id 설정
+       │
+       ▼
+Controller
+       │
+       ▼
+LogActivityAspect
+       │
+       └── [START] 사진 업로드
+       │
+       ▼
+PhotoService
+       │
+       ├── DEBUG 이미지 검증
+       ├── 비즈니스 로직
+       └── INFO 사진 저장 완료
+       │
+       ▼
+LogActivityAspect
+       │
+       └── [SUCCESS] 사진 업로드 | elapsed=249ms
+       │
+       ▼
+HTTP Response
+       │
+       └── X-Trace-Id: a72bc981
+```
+
+Console에서는 하나의 TraceId를 기준으로 다음과 같이 확인할 수 있습니다.
+
+```text
+20:50:11.102 INFO  [photo-api] [a72bc981] c.f.m.aspect.LogActivityAspect - [START] 사진 업로드
+20:50:11.109 DEBUG [photo-api] [a72bc981] c.f.photo.PhotoService - 업로드 이미지 검증. imageCount=6
+20:50:11.341 INFO  [photo-api] [a72bc981] c.f.photo.PhotoService - 사진 저장 완료. photoId=132
+20:50:11.351 INFO  [photo-api] [a72bc981] c.f.m.aspect.LogActivityAspect - [SUCCESS] 사진 업로드 | elapsed=249ms
+```
+
+TraceId 하나만 검색하면 해당 요청의 전체 로그 흐름을 확인할 수 있습니다.
+
+## 15. 개발 원칙
+
+Framey Server에서는 다음 원칙으로 로그를 작성합니다.
+
+1. **모든 메서드에 로그를 작성하지 않습니다.**  
+   로그의 양이 많아지면 중요한 정보를 찾기 어려워집니다.
+2. **주요 비즈니스 작업은 `@LogActivity`를 우선 사용합니다.**
+3. **비즈니스 내부의 의미 있는 상태만 직접 기록합니다.**
+4. **값은 가능하면 `key=value` 형태로 기록합니다.**
+5. **예외를 ERROR로 기록할 때 Stack Trace를 보존합니다.**
+6. **민감정보는 로그에 남기지 않습니다.**
+
+## 16. 향후 확장
+
+현재 `common-monitoring`은 로컬 개발과 기본적인 서버 로그 추적에 필요한 기능을 우선 제공합니다.
+
+향후 운영 환경에서는 필요에 따라 다음 기능을 추가할 수 있습니다.
+
+- HTTP Request / Response Logging
+- 민감정보 Masking
+- Correlation ID 전달
+- 구조화된 JSON Logging
+- Loki / Grafana 연동
+- 분산 환경 Trace 연동
+- Metrics / Prometheus
