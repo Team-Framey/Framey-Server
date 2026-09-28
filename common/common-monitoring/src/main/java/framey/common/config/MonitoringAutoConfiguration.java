@@ -1,7 +1,7 @@
-package com.framey.monitoring.config;
+package framey.common.config;
 
-import com.framey.monitoring.aspect.LogActivityAspect;
-import com.framey.monitoring.filter.TraceIdFilter;
+import framey.common.aspect.LogActivityAspect;
+import framey.common.filter.TraceIdFilter;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.Bean;
 

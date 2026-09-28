@@ -1,10 +1,10 @@
-package com.framey.monitoring.aspect;
+package framey.common.aspect;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 
-import com.framey.monitoring.annotation.LogActivity;
+import framey.common.annotation.LogActivity;
 
 import lombok.extern.slf4j.Slf4j;
 

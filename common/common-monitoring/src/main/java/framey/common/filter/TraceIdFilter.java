@@ -1,4 +1,4 @@
-package com.framey.monitoring.filter;
+package framey.common.filter;
 
 import java.io.IOException;
 import java.util.UUID;
