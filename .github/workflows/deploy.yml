@@ -17,15 +17,27 @@ permissions:
   packages: write
   id-token: write
 
-env:
-  IMAGE_NAME: ghcr.io/team-framey/framey-server
-
 jobs:
-  build-and-deploy:
+  # Gradle 빌드는 한 번만 수행하고, deploy/services.json을 읽어 이후 잡들이 쓸 매트릭스를 만든다.
+  # 서비스가 추가되어도 이 워크플로우는 수정할 필요 없이 services.json에 항목만 추가하면 된다.
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: services.json → 매트릭스 변환
+        id: set-matrix
+        run: |
+          set -euo pipefail
+          MATRIX=$(jq -c '{include: [.[] | {
+            name: .name,
+            module: (.module | ltrimstr(":")),
+            image: ("ghcr.io/team-framey/framey-" + .name)
+          }]}' deploy/services.json)
+          echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -36,8 +48,30 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build (Checkstyle + Test 포함)
+      - name: Build (Checkstyle + Test 포함, 전체 서비스 한 번에 빌드)
         run: ./gradlew build
+
+      - name: 서비스별 bootJar 업로드 (이미지 빌드 잡에서 재사용)
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-jars
+          path: '*/build/libs/*.jar'
+          retention-days: 1
+
+  # 서비스별로 이미지를 빌드/푸시한다. Dockerfile은 공용이며 JAR_PATH 빌드 인자만 다르게 넘긴다.
+  image:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.build.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 빌드된 jar 다운로드
+        uses: actions/download-artifact@v4
+        with:
+          name: service-jars
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -56,37 +90,20 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64
           push: true
+          build-args: |
+            JAR_PATH=${{ matrix.module }}/build/libs/${{ matrix.name }}.jar
           tags: |
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ env.IMAGE_NAME }}:latest
+            ${{ matrix.image }}:${{ github.sha }}
+            ${{ matrix.image }}:latest
 
-      - name: 임시 디버그 - 확인 후 제거
-        run: |
-          set -euo pipefail
-
-          # audience=sts.amazonaws.com 으로 OIDC JWT 발급 (토큰 원문은 어떤 경우에도 로그에 남기지 않음)
-          OIDC_RESPONSE=$(curl -sS \
-            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
-          JWT=$(echo "$OIDC_RESPONSE" | jq -r '.value')
-
-          # JWT payload(가운데 세그먼트)만 추출 후 base64url -> base64 보정(문자 치환 + 패딩)
-          PAYLOAD_B64=$(echo "$JWT" | cut -d '.' -f2)
-          PAYLOAD_B64="${PAYLOAD_B64//-/+}"
-          PAYLOAD_B64="${PAYLOAD_B64//_/\/}"
-          case $(( ${#PAYLOAD_B64} % 4 )) in
-            2) PAYLOAD_B64="${PAYLOAD_B64}==" ;;
-            3) PAYLOAD_B64="${PAYLOAD_B64}=" ;;
-          esac
-          PAYLOAD_JSON=$(echo "$PAYLOAD_B64" | base64 -d)
-
-          # 필요한 클레임만 출력 (payload 전체나 JWT 원문은 출력하지 않음)
-          echo "sub: $(echo "$PAYLOAD_JSON" | jq -r '.sub')"
-          echo "aud: $(echo "$PAYLOAD_JSON" | jq -r '.aud')"
-          echo "repository: $(echo "$PAYLOAD_JSON" | jq -r '.repository')"
-          echo "repository_owner: $(echo "$PAYLOAD_JSON" | jq -r '.repository_owner')"
-          echo "ref: $(echo "$PAYLOAD_JSON" | jq -r '.ref')"
-
+  # 서비스별로 순차 배포한다. EC2 메모리 제약 때문에 동시에 여러 서비스를 띄우지 않는다.
+  deploy:
+    needs: [build, image]
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix: ${{ fromJson(needs.build.outputs.matrix) }}
+    steps:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -99,19 +116,27 @@ jobs:
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
           INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          SERVICE: ${{ matrix.name }}
+          TARGET_IMAGE: ${{ matrix.image }}:${{ github.sha }}
         run: |
           set -euo pipefail
 
-          # 이번 커밋 SHA 기준으로 deploy/deploy.sh를 내려받아 실행하는 원격 스크립트 구성
-          DEPLOY_SCRIPT_URL="https://raw.githubusercontent.com/${REPO}/${SHA}/deploy/deploy.sh"
-          TARGET_IMAGE="${IMAGE_NAME}:${SHA}"
+          # 이번 커밋 SHA 기준으로 deploy.sh, services.json, nginx/framey.conf를 내려받아 실행하는 원격 스크립트 구성
+          RAW_BASE="https://raw.githubusercontent.com/${REPO}/${SHA}"
 
           COMMANDS_JSON=$(jq -n \
-            --arg url "$DEPLOY_SCRIPT_URL" \
+            --arg deploy_url "${RAW_BASE}/deploy/deploy.sh" \
+            --arg services_url "${RAW_BASE}/deploy/services.json" \
+            --arg nginx_url "${RAW_BASE}/deploy/nginx/framey.conf" \
+            --arg service "$SERVICE" \
             --arg image "$TARGET_IMAGE" \
             '[
-              "curl -fsSL \($url) -o /home/ubuntu/framey/deploy.sh",
-              "bash /home/ubuntu/framey/deploy.sh \($image)"
+              "mkdir -p /home/ubuntu/framey/nginx",
+              "curl -fsSL \($deploy_url) -o /home/ubuntu/framey/deploy.sh",
+              "curl -fsSL \($services_url) -o /home/ubuntu/framey/services.json",
+              "curl -fsSL \($nginx_url) -o /home/ubuntu/framey/nginx/framey.conf",
+              "chmod +x /home/ubuntu/framey/deploy.sh",
+              "bash /home/ubuntu/framey/deploy.sh \($service) \($image)"
             ]')
 
           PARAMETERS_JSON=$(jq -n --argjson commands "$COMMANDS_JSON" '{commands: $commands}')
@@ -119,7 +144,7 @@ jobs:
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
-            --comment "framey-server deploy ${SHA}" \
+            --comment "framey-${SERVICE} deploy ${SHA}" \
             --timeout-seconds 600 \
             --parameters "$PARAMETERS_JSON" \
             --query "Command.CommandId" \

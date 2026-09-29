@@ -17,8 +17,12 @@ RUN groupadd --system framey && useradd --system --gid framey --no-create-home f
 # 앱 파일을 담을 작업 디렉터리
 WORKDIR /app
 
+# 빌드 대상 서비스의 bootJar 경로를 빌드 인자로 받음 (서비스별로 다른 Dockerfile을 둘 필요 없음)
+# 예: --build-arg JAR_PATH=member/build/libs/member.jar
+ARG JAR_PATH
+
 # GitHub Actions에서 미리 빌드해 둔 bootJar만 복사 (컨테이너 안에서 Gradle 빌드 안 함)
-COPY app/build/libs/app.jar app.jar
+COPY ${JAR_PATH} app.jar
 
 # 실행 파일 소유권을 non-root 사용자에게 이전
 RUN chown framey:framey app.jar

@@ -1,4 +1,5 @@
 rootProject.name = 'server'
 
 include 'common'
-include 'app'
+include 'member'
+include 'collage'

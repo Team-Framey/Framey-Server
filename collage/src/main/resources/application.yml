@@ -1,6 +1,6 @@
 spring:
   application:
-    name: framey
+    name: framey-collage
 
 server:
   port: 8080

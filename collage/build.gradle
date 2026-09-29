@@ -12,5 +12,5 @@ jar {
 }
 
 bootJar {
-	archiveFileName = 'app.jar'
+	archiveFileName = 'collage.jar'
 }
