@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - dev
-      - chore/FBE-9-Cicd # 테스트 후 제거
   workflow_dispatch:
 
 # 배포가 동시에 두 개 돌지 않도록 직렬화. 진행 중인 배포는 취소하지 않고 대기시킴.
