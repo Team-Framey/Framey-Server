@@ -1,12 +1,12 @@
-package com.framey.member;
+package framey.collage;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
-public class MemberApplication {
+@SpringBootApplication(scanBasePackages = "framey")
+public class CollageApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(MemberApplication.class, args);
+		SpringApplication.run(CollageApplication.class, args);
 	}
 }

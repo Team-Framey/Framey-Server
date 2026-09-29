@@ -1,3 +1,6 @@
+# 빌드 컨텍스트는 레포 루트(docker build -f collage-service/Dockerfile .)를 전제로 한다.
+# 새 서비스를 추가할 때는 이 파일을 <새 서비스>/Dockerfile로 복사해서 COPY 경로만 바꾸면 된다.
+
 # 베이스 이미지: JDK가 아닌 JRE만 사용해 이미지 용량을 줄임 (실행만 하면 되므로)
 FROM eclipse-temurin:21-jre
 
@@ -17,12 +20,8 @@ RUN groupadd --system framey && useradd --system --gid framey --no-create-home f
 # 앱 파일을 담을 작업 디렉터리
 WORKDIR /app
 
-# 빌드 대상 서비스의 bootJar 경로를 빌드 인자로 받음 (서비스별로 다른 Dockerfile을 둘 필요 없음)
-# 예: --build-arg JAR_PATH=member/build/libs/member.jar
-ARG JAR_PATH
-
 # GitHub Actions에서 미리 빌드해 둔 bootJar만 복사 (컨테이너 안에서 Gradle 빌드 안 함)
-COPY ${JAR_PATH} app.jar
+COPY collage-service/build/libs/collage-service.jar app.jar
 
 # 실행 파일 소유권을 non-root 사용자에게 이전
 RUN chown framey:framey app.jar
