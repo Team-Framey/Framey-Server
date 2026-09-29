@@ -1,0 +1,18 @@
+[
+  {
+    "name": "member",
+    "module": ":member-service",
+    "bluePort": 8080,
+    "greenPort": 8081,
+    "path": "/api/members",
+    "memory": "512m"
+  },
+  {
+    "name": "collage",
+    "module": ":collage-service",
+    "bluePort": 8082,
+    "greenPort": 8083,
+    "path": "/api/collages",
+    "memory": "512m"
+  }
+]

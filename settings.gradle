@@ -1,3 +1,5 @@
 rootProject.name = 'server'
 
 include 'common'
+include 'member-service'
+include 'collage-service'

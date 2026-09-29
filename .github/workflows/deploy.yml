@@ -1,0 +1,199 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+# 배포가 동시에 두 개 돌지 않도록 직렬화. 진행 중인 배포는 취소하지 않고 대기시킴.
+concurrency:
+  group: deploy-framey-server
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  # Gradle 빌드는 한 번만 수행하고, deploy/services.json을 읽어 이후 잡들이 쓸 매트릭스를 만든다.
+  # 서비스가 추가되어도 이 워크플로우는 수정할 필요 없이 services.json에 항목만 추가하면 된다.
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: services.json → 매트릭스 변환
+        id: set-matrix
+        run: |
+          set -euo pipefail
+          MATRIX=$(jq -c '{include: [.[] | {
+            name: .name,
+            module: (.module | ltrimstr(":")),
+            image: ("ghcr.io/team-framey/framey-" + .name)
+          }]}' deploy/services.json)
+          echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build (Checkstyle + Test 포함, 전체 서비스 한 번에 빌드)
+        run: ./gradlew build
+
+      - name: 서비스별 bootJar 업로드 (이미지 빌드 잡에서 재사용)
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-jars
+          path: '*/build/libs/*.jar'
+          retention-days: 1
+
+  # 서비스별로 이미지를 빌드/푸시한다. Dockerfile은 서비스 폴더(<module>/Dockerfile)마다 따로 두며,
+  # 빌드 컨텍스트는 계속 레포 루트를 사용한다.
+  image:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.build.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 빌드된 jar 다운로드
+        uses: actions/download-artifact@v4
+        with:
+          name: service-jars
+
+      - name: 서비스 Dockerfile 존재 확인
+        run: |
+          set -euo pipefail
+          if [[ ! -f "${{ matrix.module }}/Dockerfile" ]]; then
+            echo "서비스 폴더에 Dockerfile이 필요함: ${{ matrix.module }}/Dockerfile" >&2
+            exit 1
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 이미지 빌드 & 푸시 (linux/amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.module }}/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ matrix.image }}:${{ github.sha }}
+            ${{ matrix.image }}:latest
+
+  # 서비스별로 순차 배포한다. EC2 메모리 제약 때문에 동시에 여러 서비스를 띄우지 않는다.
+  deploy:
+    needs: [build, image]
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix: ${{ fromJson(needs.build.outputs.matrix) }}
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-2
+
+      - name: EC2 배포 명령 전송 (SSM SendCommand)
+        id: ssm-send
+        env:
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          SERVICE: ${{ matrix.name }}
+          TARGET_IMAGE: ${{ matrix.image }}:${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          # 이번 커밋 SHA 기준으로 deploy.sh, services.json, nginx/framey.conf를 내려받아 실행하는 원격 스크립트 구성
+          RAW_BASE="https://raw.githubusercontent.com/${REPO}/${SHA}"
+
+          COMMANDS_JSON=$(jq -n \
+            --arg deploy_url "${RAW_BASE}/deploy/deploy.sh" \
+            --arg services_url "${RAW_BASE}/deploy/services.json" \
+            --arg nginx_url "${RAW_BASE}/deploy/nginx/framey.conf" \
+            --arg service "$SERVICE" \
+            --arg image "$TARGET_IMAGE" \
+            '[
+              "mkdir -p /home/ubuntu/framey/nginx",
+              "curl -fsSL \($deploy_url) -o /home/ubuntu/framey/deploy.sh",
+              "curl -fsSL \($services_url) -o /home/ubuntu/framey/services.json",
+              "curl -fsSL \($nginx_url) -o /home/ubuntu/framey/nginx/framey.conf",
+              "chmod +x /home/ubuntu/framey/deploy.sh",
+              "bash /home/ubuntu/framey/deploy.sh \($service) \($image)"
+            ]')
+
+          PARAMETERS_JSON=$(jq -n --argjson commands "$COMMANDS_JSON" '{commands: $commands}')
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "framey-${SERVICE} deploy ${SHA}" \
+            --timeout-seconds 600 \
+            --parameters "$PARAMETERS_JSON" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "command-id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
+          echo "SSM Command ID: ${COMMAND_ID}"
+
+      - name: SSM 명령 완료 대기 (직접 폴링, 최대 5분)
+        env:
+          COMMAND_ID: ${{ steps.ssm-send.outputs.command-id }}
+          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+        run: |
+          set -euo pipefail
+
+          MAX_ATTEMPTS=30
+          INTERVAL_SECONDS=10
+          STATUS="Pending"
+          INVOCATION="{}"
+
+          for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
+            if RESULT=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID" 2>/dev/null); then
+              INVOCATION="$RESULT"
+              STATUS=$(echo "$INVOCATION" | jq -r '.Status')
+              case "$STATUS" in
+                Pending | InProgress | Delayed) ;;
+                *) break ;;
+              esac
+            fi
+
+            echo "[$attempt/$MAX_ATTEMPTS] 상태: ${STATUS} - ${INTERVAL_SECONDS}초 후 재확인"
+            sleep "$INTERVAL_SECONDS"
+          done
+
+          echo "===== EC2 stdout ====="
+          echo "$INVOCATION" | jq -r '.StandardOutputContent // ""'
+          echo "===== EC2 stderr ====="
+          echo "$INVOCATION" | jq -r '.StandardErrorContent // ""'
+          echo "===== 최종 상태: ${STATUS} ====="
+
+          if [[ "$STATUS" != "Success" ]]; then
+            echo "배포 실패: SSM 명령 상태 = ${STATUS}" >&2
+            exit 1
+          fi
