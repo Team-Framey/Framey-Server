@@ -5,10 +5,7 @@ import framey.common.exception.CommonErrorCode;
 import framey.common.exception.ServiceUnavailableException;
 import framey.common.response.ApiResponse;
 import jakarta.validation.ConstraintViolationException;
-
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -48,13 +45,16 @@ public class CommonExceptionHandler {
     }
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusinessException(final BusinessException e) {
-        HttpStatus status = e.getErrorCode() == CommonErrorCode.AUTHENTICATION_REQUIRED
-                ? HttpStatus.UNAUTHORIZED
-                : HttpStatus.BAD_REQUEST;
-
-        log.warn("{} 발생! errorCode={}", e.getClass().getSimpleName(), e.getErrorCode().getValue(), e);
-        return ResponseEntity.status(status)
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(
+            final BusinessException e
+    ) {
+        log.warn(
+                "{} 발생! errorCode={}",
+                e.getClass().getSimpleName(),
+                e.getErrorCode().getValue(),
+                e
+        );
+        return ResponseEntity.status(e.getErrorCode().getHttpStatus())
                 .body(fail(e.getErrorCode()));
     }
 
