@@ -1,0 +1,23 @@
+{
+  "_comment": "서비스가 추가되거나 변경될 경우 항목 추가 및 수정 필요",
+  "urls": [
+    {
+      "name": "Member Service",
+      "url": "/api-docs/member"
+    },
+    {
+      "name": "Collage Service",
+      "url": "/api-docs/collage"
+    },
+    {
+      "name": "Mypage Service",
+      "url": "/api-docs/mypage"
+    }
+  ],
+  "urls.primaryName": "Member Service",
+  "deepLinking": true,
+  "displayRequestDuration": true,
+  "operationsSorter": "method",
+  "tagsSorter": "alpha",
+  "persistAuthorization": true
+}
