@@ -18,10 +18,10 @@
 ![k6](https://img.shields.io/badge/k6-7D64FF?logo=k6&logoColor=white)
 
 ### 🧑🏻‍💻 Developers
-| ![](https://github.com/young0311.png?s=100) | ![](https://github.com/nimuseel.png?s=100) | ![](https://github.com/hwannn123.png?s=100) | ![](https://github.com/junho0831.png?s=100) |
-|:----------------------------------------------:|:---------------------------------------------:|:---------------------------------------------:|:---------------------------------------------:|
-| **양화영 (Lead)** | **이수민** | **김환희** | **김준호** |
 
+| ![](https://github.com/young0311.png?s=80) | ![](https://github.com/nimuseel.png?s=80) | ![](https://github.com/hwannn123.png?s=80) | ![](https://github.com/junho0831.png?s=80) |
+|:------------------------------------------:|:-----------------------------------------:|:------------------------------------------:|:------------------------------------------:|
+|             **양화영 (Lead)**              |                **이수민**                 |                 **김환희**                 |                 **김준호**                 |
 ### 📐 Team Rules
 [- Git & Code Convention
 ](https://github.com/Team-Framey/Framey-Server.wiki.git)
