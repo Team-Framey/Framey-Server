@@ -1,3 +1,5 @@
 rootProject.name = 'server'
 
-include 'common'
+include ':common:common-monitoring'
+include ':common:common-jpa'
+include ':common:common-web'
