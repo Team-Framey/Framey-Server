@@ -15,39 +15,11 @@ services:
       - framey-postgres-data:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U framey -d framey_local"]
+      test: ["CMD-SHELL", "pg_isready -U root -d framey_local"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
-  rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: framey-local-rabbitmq
-    # stream plugin 활성화 후 RabbitMQ 시작
-    command: >
-      sh -c "rabbitmq-plugins enable --offline rabbitmq_stream &&
-             rabbitmq-server"
-
-    ports:
-      - "5672:5672"    # AMQP
-      - "5552:5552"    # Stream protocol
-      - "15672:15672"  # Management UI
-
-    environment:
-      RABBITMQ_DEFAULT_USER: root
-      RABBITMQ_DEFAULT_PASS: root
-
-    volumes:
-      - framey-rabbitmq-data:/var/lib/rabbitmq
-
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-
 volumes:
   framey-postgres-data:
-  framey-rabbitmq-data:
