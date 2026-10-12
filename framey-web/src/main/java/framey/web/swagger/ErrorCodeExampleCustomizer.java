@@ -1,12 +1,14 @@
 package framey.web.swagger;
 
-import framey.common.response.ApiResponse;
 import framey.common.response.ErrorCode;
+import framey.web.swagger.annotation.ApiErrorCodeExample;
+import framey.web.swagger.annotation.PublicApi;
 
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.examples.Example;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
+import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import org.springdoc.core.customizers.OperationCustomizer;
 import org.springframework.web.method.HandlerMethod;
@@ -15,11 +17,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class ErrorCodeExampleCustomizer implements OperationCustomizer {
 
     private static final String APPLICATION_JSON = "application/json";
+    private static final String ENUM_TYPE_REQUIRED_MESSAGE = "ErrorCode 구현체는 enum 타입이어야 합니다.";
 
     @Override
     public Operation customize(
@@ -37,10 +41,10 @@ public class ErrorCodeExampleCustomizer implements OperationCustomizer {
             HandlerMethod handlerMethod
     ) {
         boolean publicMethod =
-                handlerMethod.hasMethodAnnotation(framey.common.swagger.annotation.PublicApi.class);
+                handlerMethod.hasMethodAnnotation(PublicApi.class);
 
         boolean publicController =
-                handlerMethod.getBeanType().isAnnotationPresent(framey.common.swagger.annotation.PublicApi.class);
+                handlerMethod.getBeanType().isAnnotationPresent(PublicApi.class);
 
         if (publicMethod || publicController) {
             operation.setSecurity(new ArrayList<>());
@@ -51,14 +55,14 @@ public class ErrorCodeExampleCustomizer implements OperationCustomizer {
             Operation operation,
             HandlerMethod handlerMethod
     ) {
-        framey.common.swagger.annotation.ApiErrorCodeExample annotation =
-                handlerMethod.getMethodAnnotation(framey.common.swagger.annotation.ApiErrorCodeExample.class);
+        ApiErrorCodeExample annotation =
+                handlerMethod.getMethodAnnotation(ApiErrorCodeExample.class);
 
         if (annotation == null) {
             return;
         }
 
-        List<String> includes = Arrays.asList(annotation.include());
+        Set<String> includes = Set.of(annotation.include());
 
         List<ExampleHolder> exampleHolders =
                 Arrays.stream(annotation.value())
@@ -85,10 +89,7 @@ public class ErrorCodeExampleCustomizer implements OperationCustomizer {
             operation.setResponses(responses);
         }
 
-        addExamplesToResponses(
-                responses,
-                examplesByStatus
-        );
+        addExamplesToResponses(responses, examplesByStatus);
     }
 
     private List<ErrorCode> getErrorCodes(
@@ -98,7 +99,8 @@ public class ErrorCodeExampleCustomizer implements OperationCustomizer {
 
         if (constants == null) {
             throw new IllegalArgumentException(
-                    "ErrorCode 구현체는 enum이어야 합니다: "
+                    ENUM_TYPE_REQUIRED_MESSAGE
+                            + " type="
                             + type.getName()
             );
         }
@@ -111,7 +113,7 @@ public class ErrorCodeExampleCustomizer implements OperationCustomizer {
     private String getEnumName(ErrorCode errorCode) {
         if (!(errorCode instanceof Enum<?> enumValue)) {
             throw new IllegalArgumentException(
-                    "ErrorCode 구현체는 enum이어야 합니다."
+                    ENUM_TYPE_REQUIRED_MESSAGE
             );
         }
 
@@ -132,7 +134,7 @@ public class ErrorCodeExampleCustomizer implements OperationCustomizer {
         Example example = new Example();
 
         example.setValue(
-                ApiResponse.fail(errorCode)
+                framey.common.response.ApiResponse.fail(errorCode)
         );
 
         return example;
@@ -145,10 +147,10 @@ public class ErrorCodeExampleCustomizer implements OperationCustomizer {
         examplesByStatus.forEach((status, exampleHolders) -> {
             String statusCode = String.valueOf(status);
 
-            io.swagger.v3.oas.models.responses.ApiResponse response =
+            ApiResponse response =
                     responses.computeIfAbsent(
                             statusCode,
-                            key -> new io.swagger.v3.oas.models.responses.ApiResponse()
+                            key -> new ApiResponse()
                                     .description("Error Response")
                     );
 
@@ -160,7 +162,8 @@ public class ErrorCodeExampleCustomizer implements OperationCustomizer {
 
             if (mediaType == null) {
                 mediaType = new MediaType();
-                response.getContent().addMediaType(APPLICATION_JSON, mediaType);
+                response.getContent()
+                        .addMediaType(APPLICATION_JSON, mediaType);
             }
 
             for (ExampleHolder exampleHolder : exampleHolders) {

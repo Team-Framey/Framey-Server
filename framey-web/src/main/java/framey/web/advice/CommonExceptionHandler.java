@@ -49,10 +49,7 @@ public class CommonExceptionHandler {
             final BusinessException e
     ) {
         log.warn(
-                "{} 발생! errorCode={}",
-                e.getClass().getSimpleName(),
-                e.getErrorCode().getValue(),
-                e
+                "{} 발생! errorCode={}", e.getClass().getSimpleName(), e.getErrorCode().getValue(), e
         );
         return ResponseEntity.status(e.getErrorCode().getHttpStatus())
                 .body(fail(e.getErrorCode()));
