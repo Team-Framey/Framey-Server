@@ -46,7 +46,7 @@ subprojects {
 		toolVersion = '10.26.1'
 
 		configFile = rootProject.file(
-				'common/checkstyle/naver-checkstyle-rules.xml'
+				'framey-common/checkstyle/naver-checkstyle-rules.xml'
 		)
 
 		maxWarnings = 0
@@ -55,7 +55,7 @@ subprojects {
 
 		configProperties = [
 				'suppressionFile': rootProject
-						.file('common/checkstyle/naver-checkstyle-suppressions.xml')
+						.file('framey-common/checkstyle/naver-checkstyle-suppressions.xml')
 						.absolutePath
 		]
 	}
