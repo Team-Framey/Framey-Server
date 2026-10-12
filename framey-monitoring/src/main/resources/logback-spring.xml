@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+	<springProperty
+			scope="context"
+			name="APP_NAME"
+			source="spring.application.name"
+			defaultValue="framey-service"
+	/>
+
+	<property
+			name="CONSOLE_LOG_PATTERN"
+			value="%d{HH:mm:ss.SSS,Asia/Seoul} %highlight(%-5level) %magenta([${APP_NAME}]) %cyan([%X{traceId:-none}]) %logger{36} - %msg%n"
+	/>
+
+	<property
+			name="FILE_LOG_PATTERN"
+			value="%d{yyyy-MM-dd HH:mm:ss.SSS,Asia/Seoul} [${APP_NAME}] [%X{traceId:-none}] %-5level %logger{36} - %msg%n"
+	/>
+
+	<appender
+			name="CONSOLE"
+			class="ch.qos.logback.core.ConsoleAppender">
+
+		<encoder>
+			<pattern>${CONSOLE_LOG_PATTERN}</pattern>
+			<charset>UTF-8</charset>
+		</encoder>
+
+	</appender>
+
+	<appender
+			name="FILE"
+			class="ch.qos.logback.core.rolling.RollingFileAppender">
+
+		<file>logs/${APP_NAME}.log</file>
+
+		<rollingPolicy
+				class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+
+			<fileNamePattern>
+				logs/${APP_NAME}-%d{yyyy-MM-dd}.%i.log
+			</fileNamePattern>
+
+			<maxFileSize>10MB</maxFileSize>
+			<maxHistory>14</maxHistory>
+
+		</rollingPolicy>
+
+		<encoder>
+			<pattern>${FILE_LOG_PATTERN}</pattern>
+			<charset>UTF-8</charset>
+		</encoder>
+
+	</appender>
+
+	<logger name="com.framey" level="DEBUG"/>
+
+	<root level="INFO">
+		<appender-ref ref="CONSOLE"/>
+		<appender-ref ref="FILE"/>
+	</root>
+
+</configuration>
