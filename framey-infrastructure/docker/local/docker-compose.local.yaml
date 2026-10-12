@@ -4,18 +4,22 @@ services:
     container_name: framey-local-postgres
 
     ports:
-      - "5432:5432"
+      - "5433:5432"
 
     environment:
-      POSTGRES_DB: framey_local
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: root
+      POSTGRES_DB: ${LOCAL_DB_NAME:-framey_local}
+      POSTGRES_USER: ${LOCAL_DB_USER:-root}
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:-root12345}
 
     volumes:
       - framey-postgres-data:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U root -d framey_local"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"
+        ]
       interval: 10s
       timeout: 5s
       retries: 5

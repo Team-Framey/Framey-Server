@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: member-service
+  profiles:
+    active: local
+server:
+  port: 8081
+#swagger
+springdoc:
+  api-docs:
+    enabled: true

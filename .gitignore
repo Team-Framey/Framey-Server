@@ -36,6 +36,8 @@ bin/
 .env
 .env.*
 !.env.example
+### env 폴더 추적 제외 ###
+framey-env/
 
 ### OS ###
 .DS_Store
