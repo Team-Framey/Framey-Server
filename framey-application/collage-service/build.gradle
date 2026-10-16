@@ -1,0 +1,16 @@
+plugins {
+    id 'org.springframework.boot'
+    id 'java-library'
+}
+
+dependencies {
+    api project(':framey-common')
+    api project(':framey-web')
+    implementation project(":framey-monitoring")
+
+    //postgreSQLa
+    runtimeOnly 'org.postgresql:postgresql'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind'
+}
