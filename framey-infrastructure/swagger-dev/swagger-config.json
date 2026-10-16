@@ -10,8 +10,8 @@
       "url": "/api-docs/collage"
     },
     {
-      "name": "Mypage Service",
-      "url": "/api-docs/mypage"
+      "name": "Archive Service",
+      "url": "/api-docs/archive"
     }
   ],
   "urls.primaryName": "Member Service",

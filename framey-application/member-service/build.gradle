@@ -9,5 +9,8 @@ dependencies {
     implementation project(":framey-monitoring")
 
     //postgreSQL
-    runtimeOnly("org.postgresql:postgresql")
+    runtimeOnly 'org.postgresql:postgresql'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind'
 }
