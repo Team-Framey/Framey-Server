@@ -1,3 +1,5 @@
+name: framey-local
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -7,9 +9,9 @@ services:
       - "5433:5432"
 
     environment:
-      POSTGRES_DB: ${LOCAL_DB_NAME:-framey_local}
-      POSTGRES_USER: ${LOCAL_DB_USER:-root}
-      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:-root12345}
+      POSTGRES_DB: ${LOCAL_DB_NAME}
+      POSTGRES_USER: ${LOCAL_DB_USER}
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD}
 
     volumes:
       - framey-postgres-data:/var/lib/postgresql/data

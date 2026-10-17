@@ -1,7 +1,7 @@
 spring:
   datasource:
     url: ${LOCAL_DB_URl}
-    username: ${LOCAL_DB_USERNAME}
+    username: ${LOCAL_DB_USER}
     password: ${LOCAL_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
