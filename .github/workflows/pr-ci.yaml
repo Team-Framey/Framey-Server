@@ -1,0 +1,23 @@
+# pr 올렸을때 작동 workflow
+name: PR CI
+
+on:
+  #dev 브렌치
+  pull_request:
+    branches: [dev]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - run: chmod +x gradlew
+      - run: ./gradlew clean test check --no-daemon

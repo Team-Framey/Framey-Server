@@ -1,0 +1,135 @@
+name: DEV Deploy
+
+on:
+  push:
+    #dev 브렌치에 push 했을때 작동이지만 테스트로 임시 브렌치 변경
+    branches: [chore/FBE-7-nginx-routing]
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      member: ${{ steps.filter.outputs.member }}
+      collage: ${{ steps.filter.outputs.collage }}
+      archive: ${{ steps.filter.outputs.archive }}
+      swagger: ${{ steps.filter.outputs.swagger }}
+      nginx: ${{ steps.filter.outputs.nginx }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - 'framey-common/**'
+              - 'framey-web/**'
+              - 'framey-monitoring/**'
+              - 'build.gradle'
+              - 'settings.gradle'
+              - 'gradle/**'
+            member:
+              - *shared
+              - 'framey-application/member-service/**'
+            collage:
+              - *shared
+              - 'framey-application/collage-service/**'
+            archive:
+              - *shared
+              - 'framey-application/archive-service/**'
+            swagger:
+              - 'framey-infrastructure/swagger-dev/**'
+            nginx:
+              - 'framey-infrastructure/nginx/**'
+
+  deploy:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    if: |
+      needs.detect-changes.outputs.member == 'true' ||
+      needs.detect-changes.outputs.collage == 'true' ||
+      needs.detect-changes.outputs.archive == 'true' ||
+      needs.detect-changes.outputs.swagger == 'true' ||
+      needs.detect-changes.outputs.nginx == 'true'
+
+    steps:
+      - name: Build target services list
+        id: targets
+        run: |
+          SERVICES=""
+          if [ "${{ needs.detect-changes.outputs.member }}" == "true" ]; then
+            SERVICES="$SERVICES member-dev"
+          fi
+          if [ "${{ needs.detect-changes.outputs.collage }}" == "true" ]; then
+            SERVICES="$SERVICES collage-dev"
+          fi
+          if [ "${{ needs.detect-changes.outputs.archive }}" == "true" ]; then
+            SERVICES="$SERVICES archive-dev"
+          fi
+          if [ "${{ needs.detect-changes.outputs.swagger }}" == "true" ]; then
+            SERVICES="$SERVICES swagger-dev"
+          fi
+          if [ "${{ needs.detect-changes.outputs.nginx }}" == "true" ]; then
+            SERVICES="$SERVICES nginx"
+          fi
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+
+      - name: Deploy to DEV EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEV_EC2_HOST }}
+          username: ${{ secrets.DEV_EC2_USER }}
+          key: ${{ secrets.DEV_EC2_SSH_KEY }}
+          script: |
+            cd /home/ec2-user/Framey-Server
+
+            git pull origin dev
+
+            export DEV_DB_URL="${{ secrets.DEV_DB_URL }}"
+            export DEV_DB_USER="${{ secrets.DEV_DB_USER }}"
+            export DEV_DB_PASSWORD="${{ secrets.DEV_DB_PASSWORD }}"
+
+            docker compose \
+              -f framey-infrastructure/docker/dev/docker-compose.dev.yaml \
+              up -d --build --no-deps ${{ steps.targets.outputs.services }}
+
+      - name: Health Check
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEV_EC2_HOST }}
+          username: ${{ secrets.DEV_EC2_USER }}
+          script: |
+            sleep 30
+
+            SERVICES="${{ steps.targets.outputs.services }}"
+
+            check_health() {
+              local name=$1
+              local port=$2
+              for i in $(seq 1 20); do
+                if docker exec framey-dev-${name} \
+                  wget -qO- http://localhost:${port}/actuator/health 2>/dev/null \
+                  | grep -q '"status":"UP"'; then
+                  echo "✅ ${name} is healthy"
+                  return 0
+                fi
+                sleep 5
+              done
+              echo "❌ ${name} health check failed"
+              docker logs --tail=50 framey-dev-${name}
+              return 1
+            }
+
+            FAILED=0
+
+            if echo "$SERVICES" | grep -q "member-dev"; then
+              check_health "member" 8081 || FAILED=1
+            fi
+            if echo "$SERVICES" | grep -q "collage-dev"; then
+              check_health "collage" 8082 || FAILED=1
+            fi
+            if echo "$SERVICES" | grep -q "archive-dev"; then
+              check_health "archive" 8083 || FAILED=1
+            fi
+
+            exit $FAILED
