@@ -87,7 +87,6 @@ services:
     restart: unless-stopped
     networks:
       - framey-dev
-
   nginx:
     image: nginx:1.27-alpine
     container_name: framey-dev-nginx

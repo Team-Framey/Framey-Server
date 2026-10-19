@@ -40,4 +40,4 @@ jobs:
         env:
           TEST_DB_URL: jdbc:postgresql://localhost:5432/framey_test
           TEST_DB_USER: test
-          TEST_DB_PASSWORD: test12345
+          TEST_DB_PASSWORD: test

@@ -83,8 +83,9 @@ jobs:
           script: |
             cd /home/ec2-user/Framey-Server
 
-            git pull origin dev
-
+          #  git pull origin dev
+            git pull --ff-only origin chore/FBE-7-nginx-routing
+            
             export DEV_DB_URL="${{ secrets.DEV_DB_URL }}"
             export DEV_DB_USER="${{ secrets.DEV_DB_USER }}"
             export DEV_DB_PASSWORD="${{ secrets.DEV_DB_PASSWORD }}"
@@ -98,6 +99,7 @@ jobs:
         with:
           host: ${{ secrets.DEV_EC2_HOST }}
           username: ${{ secrets.DEV_EC2_USER }}
+          key: ${{ secrets.DEV_EC2_SSH_KEY }}
           script: |
             sleep 30
 
