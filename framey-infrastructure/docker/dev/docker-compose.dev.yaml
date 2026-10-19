@@ -82,7 +82,7 @@ services:
   swagger-dev:
     build:
       context: ../../swagger-dev
-      dockerfile: DockerFile
+      dockerfile: Dockerfile
     container_name: framey-dev-swagger
     restart: unless-stopped
     networks:
