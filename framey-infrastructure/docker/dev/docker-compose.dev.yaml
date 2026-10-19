@@ -1,0 +1,116 @@
+name: framey-dev
+
+services:
+  member-dev:
+    build:
+      context: ../../..
+      dockerfile: framey-application/member-service/Dockerfile
+    image: framey-member:dev
+    container_name: framey-dev-member
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_PORT: 8081
+      DEV_DB_URL: ${DEV_DB_URL}
+      DEV_DB_USER: ${DEV_DB_USER}
+      DEV_DB_PASSWORD: ${DEV_DB_PASSWORD}
+    networks:
+      - framey-dev
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:8081/actuator/health || exit 1"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  collage-dev:
+    build:
+      context: ../../..
+      dockerfile: framey-application/collage-service/Dockerfile
+    image: framey-collage:dev
+    container_name: framey-dev-collage
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_PORT: 8082
+      DEV_DB_URL: ${DEV_DB_URL}
+      DEV_DB_USER: ${DEV_DB_USER}
+      DEV_DB_PASSWORD: ${DEV_DB_PASSWORD}
+    networks:
+      - framey-dev
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:8082/actuator/health || exit 1"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  archive-dev:
+    build:
+      context: ../../..
+      dockerfile: framey-application/archive-service/Dockerfile
+    image: framey-archive:dev
+    container_name: framey-dev-archive
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_PORT: 8083
+      DEV_DB_URL: ${DEV_DB_URL}
+      DEV_DB_USER: ${DEV_DB_USER}
+      DEV_DB_PASSWORD: ${DEV_DB_PASSWORD}
+    networks:
+      - framey-dev
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:8083/actuator/health || exit 1"
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  swagger-dev:
+    build:
+      context: ../../swagger-dev
+      dockerfile: DockerFile
+    container_name: framey-dev-swagger
+    restart: unless-stopped
+    networks:
+      - framey-dev
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: framey-dev-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../../nginx/dev/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      member-dev:
+        condition: service_healthy
+      collage-dev:
+        condition: service_healthy
+      archive-dev:
+        condition: service_healthy
+      swagger-dev:
+        condition: service_started
+    networks:
+      - framey-dev
+
+networks:
+  framey-dev:
+    name: framey-dev
