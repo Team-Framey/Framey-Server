@@ -2,15 +2,15 @@
 
 ### 서비스 모듈 의존성 추가
 
-Swagger를 사용할 각 서비스 모듈의 `build.gradle`에 `common-web` 의존성을 추가합니다.
+Swagger를 사용할 각 서비스 모듈의 `build.gradle`에 `framey-web` 의존성을 추가합니다.
 
 ```gradle
 dependencies {
-    implementation project(':common:common-web')
+    implementation project(':framey-web')
 }
 ```
 
-`common-web`에는 다음 의존성이 포함되어 있습니다.
+`framey-web`에는 다음 의존성이 포함되어 있습니다.
 
 ```gradle
 api 'org.springframework.boot:spring-boot-starter-web'
@@ -91,7 +91,7 @@ http://localhost:{서비스 포트}/swagger
 http://localhost:{서비스 포트}/v3/api-docs
 ```
 
-`common-web`과 같이 독립적으로 실행되지 않는 공통 라이브러리 모듈에는 별도의 Swagger 주소가 생성되지 않습니다.
+`framey-web`과 같이 독립적으로 실행되지 않는 공통 라이브러리 모듈에는 별도의 Swagger 주소가 생성되지 않습니다.
 
 #### 개발 환경
 

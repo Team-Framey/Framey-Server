@@ -1,0 +1,30 @@
+# 빌드 산출물
+build/
+out/
+**/build/
+**/out/
+
+# Gradle
+.gradle/
+
+# IDE
+.idea/
+*.iml
+
+# Git
+.git
+.gitignore
+
+# OS
+.DS_Store
+
+# 환경변수 파일 제외
+framey-env/
+
+# Spring Boot 로컬 설정 제외
+**/application-local.yml
+**/application-local.yaml
+
+# 빌드에 불필요한 파일
+*.pem
+*.md

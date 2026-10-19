@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: archive-service
+  profiles:
+    active: local
+server:
+  port: 8083
+#swagger
+springdoc:
+  api-docs:
+    enabled: true
