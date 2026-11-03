@@ -1,6 +1,8 @@
 package framey.member.domain.member;
 
+import framey.common.exception.BusinessException;
 import framey.common.jpa.BaseEntity;
+import framey.member.exception.MemberErrorCode;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -26,6 +28,8 @@ import java.util.UUID;
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Member extends BaseEntity {
+    private static final int MAX_NICKNAME_LENGTH = 10;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long memberId;
@@ -33,7 +37,7 @@ public class Member extends BaseEntity {
     @Column(updatable = false, nullable = false)
     private String email;
 
-    @Column(length = 10, nullable = false)
+    @Column(length = MAX_NICKNAME_LENGTH, nullable = false)
     private String nickname;
 
     @Column(updatable = false, unique = true, nullable = false)
@@ -65,7 +69,7 @@ public class Member extends BaseEntity {
     ) {
         Member member = new Member();
         member.email = email;
-        member.nickname = normalizeNickname(nickname);
+        member.nickname = validateNickname(nickname);
         member.profileImageUrl = profileImageUrl;
         member.providerId = providerId;
         member.provider = provider;
@@ -76,8 +80,18 @@ public class Member extends BaseEntity {
         return member;
     }
 
-    private static String normalizeNickname(String nickname) {
-        // TODO: normalizing
-        return nickname;
+    private static String validateNickname(String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            throw new BusinessException(MemberErrorCode.NICKNAME_REQUIRED);
+        }
+
+        String stripedNickname = nickname.strip();
+
+        // NOTE: 이모지를 1글자로 처리하기 위해 codePointCount 사용
+        if (stripedNickname.codePointCount(0, stripedNickname.length()) > MAX_NICKNAME_LENGTH) {
+            throw new BusinessException(MemberErrorCode.MAX_NICKNAME_LENGTH);
+        }
+
+        return stripedNickname;
     }
 }
