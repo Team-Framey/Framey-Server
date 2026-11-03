@@ -1,0 +1,80 @@
+language: ko-KR
+early_access: true
+enable_free_tier: true
+
+reviews:
+  profile: chill
+  request_changes_workflow: true
+  high_level_summary: true
+  high_level_summary_in_walkthrough: false
+  high_level_summary_placeholder: '@coderabbitai 요약'
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  sequence_diagrams: false
+  changed_files_summary: true
+
+  path_filters:
+    - "!**/README.md"
+    - "!**/build/**"              # Gradle 빌드 산출물
+    - "!**/logs/**"               # 로그 파일
+    - "!**/gradle/wrapper/**"     # Gradle wrapper
+    - "!gradlew*"
+    - "!**/.idea/**"
+    - "!docs/**"                  # 문서 리뷰 제외
+
+#pr 닫히면 리뷰 중단
+  abort_on_close: true
+
+#자동 리뷰 활성화
+  auto_review:
+    enabled: true
+    auto_incremental_review: true #변경부분만
+    base_branches:
+      - dev
+      - main
+
+  tools:
+    shellcheck:
+      enabled: true
+    markdownlint:
+      enabled: true
+    github-checks:
+      enabled: true
+      timeout_ms: 90000
+    languagetool:
+      enabled: true
+      disabled_rules:
+        - EN_UNPAIRED_BRACKETS
+        - EN_UNPAIRED_QUOTES
+      enabled_only: false
+      level: default
+    hadolint:
+      enabled: true               # member-service 등 Dockerfile
+    yamllint:
+      enabled: true               # application-*.yaml, workflows
+    checkov:
+      enabled: true               # docker-compose, nginx, workflows 검사
+    gitleaks:
+      enabled: true               # 시크릿 하드코딩 탐지 — env 설정
+    ast-grep:
+      packages: []
+      rule_dirs: []
+      util_dirs: []
+      essential_rules: true
+    #무관한 언어
+    detekt:
+      enabled: false
+    ruff:
+      enabled: false
+    swiftlint:
+      enabled: false
+    phpstan:
+      enabled: false
+    golangci-lint:
+      enabled: false
+    biome:
+      enabled: false
+
+chat:
+  auto_reply: true
