@@ -55,19 +55,12 @@ public class Member extends BaseEntity {
     @Column(updatable = false, nullable = false)
     private Provider provider;
 
-    private LocalDate birthDate;
-
-    @Enumerated(EnumType.STRING)
-    private Gender gender;
-
     public static Member signUp(
         String email,
         String nickname,
         String profileImageUrl,
         String providerId,
-        Provider provider,
-        LocalDate birthDate,
-        Gender gender
+        Provider provider
     ) {
         Member member = new Member();
         member.email = email;
@@ -76,8 +69,6 @@ public class Member extends BaseEntity {
         member.providerId = providerId;
         member.provider = provider;
         member.entityId = UUID.randomUUID();
-        member.birthDate = birthDate;
-        member.gender = gender;
 
         return member;
     }
