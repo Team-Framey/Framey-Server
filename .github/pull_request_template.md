@@ -1,11 +1,15 @@
-## 🔗 연관된 이슈
+## Jira Number / Link
 
-> ex)Resolves(이슈가 해결되면 붙이기) #이슈번호, #이슈번호
+> ex) [FBE-7](https://framey.atlassian.net/browse/FBE-7?atlOrigin=eyJpIjoiYmUwMWRjNDBmZmM2NGM4Y2E0MDVkYjg3NjI4ZjkzMzgiLCJwIjoiaiJ9l)
 
-## 📝 작업 내용
+## Summary
 
-> 이번 PR에서 작업한 내용을 간략히 설명해주세요(이미지 첨부 가능)
+> 이번 PR에서 작업한 내용
 
-## 💬 리뷰 요구사항(선택)
+## Test Plan
+> 구현 사항 검증
 
-> 리뷰어가 특별히 봐주었으면 하는 부분이 있다면 작성해주세요
+## Follow-up Tasks
+>추후 작업 필요한 사항이 있다면 작성해주세요 (선택)
+
+@coderabbitai 요약
