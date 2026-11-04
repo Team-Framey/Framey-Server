@@ -5,28 +5,48 @@ enable_free_tier: true
 reviews:
   profile: chill
   request_changes_workflow: true
+
+  # PR 전체 변경 사항 요약
   high_level_summary: true
   high_level_summary_in_walkthrough: false
+
+  #PR 본문에 요약 삽입
   high_level_summary_placeholder: '@coderabbitai 요약'
+
+  #PR 요약 내용
+  high_level_summary_instructions: |
+    PR의 변경 사항을 분석하여 한국어로 요약해주세요.
+    
+    다음 형식을 우선적으로 사용해주세요.
+    
+    ## New Features
+    - 새롭게 추가된 기능과 API를 설명합니다.
+    
+    ## Bug Fixes / Changes
+    - 버그 수정, 기존 로직 변경 및 성능 개선 사항을 설명합니다.
+    
+    ## Tests
+    - 추가되거나 수정된 테스트를 설명합니다.
+    
+    작성 규칙:
+      - 실제 코드 변경 사항을 근거로 작성합니다.
+      - 변경 사항이 없는 항목은 생략합니다.
+      - 각 항목은 간결한 한국어로 작성합니다.
+      - 구현 세부 사항보다 기능과 동작의 변화를 우선 설명합니다.
+      - Redis, SSE, RabbitMQ 등 주요 기술은 명시합니다.
+      - 확인되지 않은 기능이나 테스트는 작성하지 않습니다.
+      - 불필요한 인사말과 마무리 문장은 작성하지 않습니다.
+
   poem: false
   review_status: true
   collapse_walkthrough: false
   sequence_diagrams: false
   changed_files_summary: true
 
-  path_filters:
-    - "!**/README.md"
-    - "!**/build/**"              # Gradle 빌드 산출물
-    - "!**/logs/**"               # 로그 파일
-    - "!**/gradle/wrapper/**"     # Gradle wrapper
-    - "!gradlew*"
-    - "!**/.idea/**"
-    - "!docs/**"                  # 문서 리뷰 제외
-
-#pr 닫히면 리뷰 중단
+  #pr 닫히면 리뷰 중단
   abort_on_close: true
 
-#자동 리뷰 활성화
+  #자동 리뷰 활성화
   auto_review:
     enabled: true
     auto_incremental_review: true #변경부분만
