@@ -12,4 +12,5 @@
 ## Follow-up Tasks
 >추후 작업 필요한 사항이 있다면 작성해주세요 (선택)
 
+## Summary By CodeRabbit
 @coderabbitai 요약
