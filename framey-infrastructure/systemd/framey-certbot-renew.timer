@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily Let's Encrypt renewal check (certbot은 만료 30일 전부터만 실제 갱신)
+
+[Timer]
+# Let's Encrypt 권장: 하루 2회 체크, 부트 후 10분 뒤 첫 실행
+OnCalendar=*-*-* 00,12:00:00
+OnBootSec=10min
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

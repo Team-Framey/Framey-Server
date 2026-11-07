@@ -1,0 +1,9 @@
+[Unit]
+Description=Renew Let's Encrypt certificates for dev-swagger.framey.kr
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# webroot 방식 — nginx의 /.well-known/acme-challenge/ 경로가 /var/www/certbot 을 서빙
+ExecStart=/usr/bin/certbot renew --webroot -w /var/www/certbot --quiet --deploy-hook "/usr/bin/docker exec framey-dev-nginx nginx -s reload"

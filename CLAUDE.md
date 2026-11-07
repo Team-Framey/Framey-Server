@@ -30,6 +30,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `docker compose -f framey-infrastructure/docker/local/docker-compose.test.yaml up -d` — 테스트용 인프라
 - `docker compose -f framey-infrastructure/docker/local/docker-compose.local.yaml down` — 종료
 
+### Git Hooks (`.githooks/`)
+- `git config core.hooksPath .githooks` — 최초 1회 설정 (팀원 온보딩 필수, 로컬 설정이라 자동 전파 안 됨)
+- `pre-commit`: staged `.java` 파일이 속한 모듈만 `checkstyleMain` 실행 (test 코드는 검사 안 함). **bash 4+ 문법 사용 (`mapfile`, `declare -A`) — macOS는 `brew install bash` 필요**
+- `pre-push`: `dev`/`main` push 시 `./gradlew clean check` 전체 검증, 기타 브랜치는 `check`
+- 우회: `git commit --no-verify` / `git push --no-verify` (긴급 시에만)
+
 
 ## Tech Foundation
 - **Language/Runtime**: Java 21 (Gradle toolchain, Temurin 21 in CI)
@@ -123,15 +129,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **인프라**: postgres:16-alpine 서비스 컨테이너, `TEST_DB_URL`/`TEST_DB_USER`/`TEST_DB_PASSWORD` env로 테스트 DB 주입
 
 ### Dev Deploy (`.github/workflows/dev-deploy.yaml`)
-- **트리거**: `dev` 브랜치 push
-- **변경 감지**: `dorny/paths-filter`로 서비스별 배포 여부 판단. 공유 모듈(`framey-common`, `framey-web`, `framey-monitoring`, 루트 gradle 파일) 변경 시 전 서비스 재배포.
-- **배포**: SSH로 dev EC2 접속 → `git pull` → `docker compose -f framey-infrastructure/docker/dev/docker-compose.dev.yaml up -d --build --no-deps {변경된 서비스}`
-- **Health Check**: `/actuator/health`가 `"status":"UP"` 될 때까지 최대 100초 폴링. 실패 시 `docker logs --tail=50` 출력 후 workflow 실패.
+- **트리거**: `dev` 브랜치 push → SSH로 dev EC2 접속 후 `/opt/framey/bin/deploy-dispatch.sh ${{ github.sha }}` 실행 (`command_timeout: 30m`). dispatcher는 repo 밖 고정 경로에 설치 — 서버 최초 설정: `sudo mkdir -p /opt/framey/bin && sudo cp framey-infrastructure/scripts/deploy-dispatch.sh /opt/framey/bin/ && sudo chmod +x /opt/framey/bin/deploy-dispatch.sh`
+- **실행 구조**: `deploy-dispatch.sh`(EC2 고정 진입점) — `flock` 획득 → `git fetch` → TARGET이 `origin/dev`의 ancestor인지 검증 → **checkout 전에** 구형 배포 skip(TARGET이 마지막 성공 SHA의 ancestor면 조기 종료) → 서버 tracked 변경 감지 시 거부 → detached HEAD로 TARGET checkout → **해당 커밋의** `deploy-dev.sh` 실행. checkout과 배포 실행이 모두 같은 잠금 범위 안에 있어 동시 배포 충돌 방지. `deploy-dev.sh` 직접 실행 시 HEAD!=TARGET 가드로 차단됨. `FORCE_FULL=true` 환경변수로 수동 full deploy 가능.
+- **변경 감지**: `deploy-dev.sh`가 `.git/framey-dev-success`(마지막 성공 SHA)와 대상 SHA의 `git diff`로 누적 변경분 판단. 공유 모듈(`framey-common`, `framey-web`, `framey-monitoring`, 루트 gradle 파일, `framey-infrastructure/docker/dev|scripts|systemd`, workflow 자체) 변경 시 전체 재배포. 베이스 SHA 유실·비선형 이력이면 full deploy. 어떤 규칙에도 매칭되지 않는 변경 파일은 WARNING으로 출력 (새 모듈/루트 설정 누락 감지용).
+- **동시 배포 제어**: `concurrency: dev-deploy`(workflow 직렬화) + `deploy-dispatch.sh`의 `flock`(`.git/framey-dev.lock`, 최대 20분 대기). 이미 배포된 SHA로의 구형 배포 요청은 자동 skip.
+- **배포**: checkout된 커밋의 `deploy-dev.sh`가 변경 서비스만 `docker compose build` → NGINX 변경 시 새 conf를 임시 컨테이너(`framey-dev` 네트워크, letsencrypt ro 마운트)에서 `nginx -t` 사전 검증 — 실패 시 컨테이너 재생성 전에 배포 중단 → `up -d --no-build --no-deps` → 검증 전부 통과 시에만 성공 SHA 기록 (실패 시 state 미갱신 → 다음 배포가 누적 diff 재계산)
+- **검증**: 앱 `/actuator/health` `"UP"` 폴링(최대 200s) → nginx·swagger 컨테이너 미실행 시 ERROR로 즉시 실패(DEV는 상시 실행 환경 전제) → `nginx -t`는 항상, reload는 NGINX 변경 시에만 → `/health` + swagger 응답 → `https://dev-swagger.framey.kr/` 외부 검증 → OpenAPI 검증(nginx/swagger 변경 시 3개 앱 전부, 앱만 변경 시 해당 앱만). 변경 파일이 있으나 배포 대상이 없으면 NOTICE로 파일 목록 출력.
+- **부분 배포 실패**: 성공 SHA 미기록은 "다음 배포가 누적 diff를 재시도"하게 만들 뿐, 이미 뜬 컨테이너를 이전 상태로 되돌리지는 않는다(이전 이미지 태그를 보관하지 않으므로 롤백 불가). 실패 시 `docker compose ps -a` + 대상 서비스 로그가 출력되고, 수정 후 다음 배포가 동일 서비스를 다시 빌드·검증한다.
 - **포트**: member 8081 / collage 8082 / archive 8083
+- **SSL**: 호스트 certbot + systemd timer로 갱신 (`framey-infrastructure/systemd/framey-certbot-renew.{service,timer}` — 하루 2회, deploy-hook으로 nginx reload). 서버 최초 설정:
+  - `sudo cp framey-infrastructure/systemd/framey-certbot-renew.{service,timer} /etc/systemd/system/`
+  - `sudo systemctl daemon-reload && sudo systemctl enable --now framey-certbot-renew.timer`
+  - 검증: `systemctl list-timers framey-certbot-renew` (활성 확인), `sudo certbot renew --dry-run` (갱신 dry-run)
+- **Container Health**: 5개 서비스 모두 compose `healthcheck` 보유 — 앱 3개는 actuator, swagger는 `GET :8080/`, nginx는 `GET /health`(`default.conf` 정의)
 
 ### Branch Flow
 - feature/* → dev (PR + CI) → dev push 시 자동 dev 배포
 - `main`은 배포 워크플로우 없음 — 프로덕션 배포 정책은 별도 정의 필요
+
 
 
 ## Language Conventions
