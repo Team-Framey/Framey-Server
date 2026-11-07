@@ -9,29 +9,32 @@ import static framey.member.domain.member.Member.MAX_NICKNAME_LENGTH;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class NicknameGenerator {
-    private static final String NICKNAME_BASE = "프레이미";
-    private static final int MIN_SUFFIX_DIGITS = 5;
+    private static final String BASE_NICKNAME = "프레이미";
+    private static final int MIN_SUFFIX_DIGITS = 4;
 
-    public static String generate(String nickname) {
-        boolean hasNickname = nickname != null && !nickname.isBlank();
+    public static String normalize(String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            return BASE_NICKNAME;
+        }
 
-        String baseNickname = hasNickname ? nickname.strip() : NICKNAME_BASE;
+        return truncate(nickname.strip(), MAX_NICKNAME_LENGTH);
+    }
 
-        int baseLength = baseNickname.codePointCount(0, baseNickname.length());
+    public static String appendSuffix(String base) {
+        int baseLength = base.codePointCount(0, base.length());
         int suffixLength = Math.max(MIN_SUFFIX_DIGITS, MAX_NICKNAME_LENGTH - baseLength);
-        int keepLength = MAX_NICKNAME_LENGTH - suffixLength;
 
-        if (baseLength > keepLength) {
-            baseNickname = baseNickname.substring(0, baseNickname.offsetByCodePoints(0, keepLength));
-        }
-
-        StringBuilder base = new StringBuilder(baseNickname);
-
+        StringBuilder nickname = new StringBuilder(truncate(base, MAX_NICKNAME_LENGTH - suffixLength));
         for (int i = 0; i < suffixLength; i++) {
-            int randomNumber = new Random().nextInt(10);
-            base.append(randomNumber);
+            nickname.append(new Random().nextInt(10));
         }
+        return nickname.toString();
+    }
 
-        return base.toString();
+    private static String truncate(String value, int maxLength) {
+        if (value.codePointCount(0, value.length()) <= maxLength) {
+            return value;
+        }
+        return value.substring(0, value.offsetByCodePoints(0, maxLength));
     }
 }
