@@ -1,4 +1,4 @@
-package framey.member.domain.member;
+package framey.member.domain.constant;
 
 public enum Provider {
     GOOGLE,

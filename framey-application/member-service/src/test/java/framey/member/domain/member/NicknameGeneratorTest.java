@@ -6,16 +6,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import static framey.member.domain.member.NicknameGenerator.appendSuffix;
-import static framey.member.domain.member.NicknameGenerator.normalize;
+import static framey.member.domain.model.NicknameGenerator.appendSuffix;
+import static framey.member.domain.model.NicknameGenerator.normalize;
 
 class NicknameGeneratorTest {
-    /**
-     *      - 6자, 11자 → ^가나다라마\d{5}$
-     *      - 🙂×10 → 🙂×5 + \d{5}
-     *      - 모든 결과의 코드포인트 길이가 10인지
-     */
-
     @ParameterizedTest
     @ValueSource(strings = {" ", "\u3000"})
     @NullAndEmptySource

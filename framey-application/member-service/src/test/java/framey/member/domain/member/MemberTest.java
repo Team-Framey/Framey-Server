@@ -1,7 +1,9 @@
 package framey.member.domain.member;
 
 import framey.common.exception.BusinessException;
-import framey.member.exception.MemberErrorCode;
+import framey.member.domain.constant.Provider;
+import framey.member.domain.model.Member;
+import framey.member.domain.exception.MemberErrorCode;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -1,11 +1,11 @@
-package framey.member.domain.member;
+package framey.member.domain.model;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 import java.util.Random;
 
-import static framey.member.domain.member.Member.MAX_NICKNAME_LENGTH;
+import static framey.member.domain.model.Member.MAX_NICKNAME_LENGTH;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class NicknameGenerator {

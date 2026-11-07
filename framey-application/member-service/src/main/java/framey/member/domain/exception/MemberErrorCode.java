@@ -1,4 +1,4 @@
-package framey.member.exception;
+package framey.member.domain.exception;
 
 import framey.common.response.ErrorCode;
 import lombok.Getter;

@@ -1,8 +1,9 @@
-package framey.member.domain.member;
+package framey.member.domain.model;
 
 import framey.common.exception.BusinessException;
 import framey.common.jpa.BaseEntity;
-import framey.member.exception.MemberErrorCode;
+import framey.member.domain.constant.Provider;
+import framey.member.domain.exception.MemberErrorCode;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
