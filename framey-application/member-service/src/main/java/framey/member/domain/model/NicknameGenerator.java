@@ -5,19 +5,25 @@ import lombok.NoArgsConstructor;
 
 import java.util.Random;
 
-import static framey.member.domain.model.Member.MAX_NICKNAME_LENGTH;
+import static framey.member.domain.constant.NicknameConstant.BASE_NICKNAME;
+import static framey.member.domain.constant.NicknameConstant.EDGE_WHITESPACE;
+import static framey.member.domain.constant.NicknameConstant.MAX_NICKNAME_LENGTH;
+import static framey.member.domain.constant.NicknameConstant.MIN_SUFFIX_DIGITS;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class NicknameGenerator {
-    private static final String BASE_NICKNAME = "프레이미";
-    private static final int MIN_SUFFIX_DIGITS = 4;
-
     public static String normalize(String nickname) {
-        if (nickname == null || nickname.isBlank()) {
+        if (nickname == null) {
             return BASE_NICKNAME;
         }
 
-        return truncate(nickname.strip(), MAX_NICKNAME_LENGTH);
+        String stripedNickname = EDGE_WHITESPACE.matcher(nickname).replaceAll("");
+
+        if (stripedNickname.isEmpty()) {
+            return BASE_NICKNAME;
+        }
+
+        return truncate(stripedNickname.strip(), MAX_NICKNAME_LENGTH);
     }
 
     public static String appendSuffix(String base) {

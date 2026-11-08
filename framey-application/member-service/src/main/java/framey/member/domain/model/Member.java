@@ -20,6 +20,9 @@ import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
+import static framey.member.domain.constant.NicknameConstant.EDGE_WHITESPACE;
+import static framey.member.domain.constant.NicknameConstant.MAX_NICKNAME_LENGTH;
+
 @Entity
 @Table(
     uniqueConstraints = {
@@ -31,8 +34,6 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class Member extends BaseEntity {
-    public static final int MAX_NICKNAME_LENGTH = 10;
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long memberId;
@@ -78,11 +79,16 @@ public class Member extends BaseEntity {
     }
 
     private static String validateNickname(String nickname) {
-        if (nickname == null || nickname.isBlank()) {
+        if (nickname == null) {
             throw new BusinessException(MemberErrorCode.NICKNAME_REQUIRED);
         }
 
-        String stripedNickname = nickname.strip();
+        String stripedNickname = EDGE_WHITESPACE.matcher(nickname).replaceAll("");
+
+        if (stripedNickname.isEmpty()) {
+            throw new BusinessException(MemberErrorCode.NICKNAME_REQUIRED);
+        }
+
 
         // NOTE: 이모지를 1글자로 처리하기 위해 codePointCount 사용
         if (stripedNickname.codePointCount(0, stripedNickname.length()) > MAX_NICKNAME_LENGTH) {
