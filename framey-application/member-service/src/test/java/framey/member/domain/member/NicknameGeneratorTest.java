@@ -11,7 +11,7 @@ import static framey.member.domain.model.NicknameGenerator.normalize;
 
 class NicknameGeneratorTest {
     @ParameterizedTest
-    @ValueSource(strings = {" ", "\u3000"})
+    @ValueSource(strings = {" ", "\u3000", "\u00A0"})
     @NullAndEmptySource
     @DisplayName("닉네임이 비어있을 경우 기본 닉네임을 사용한다")
     void useDefaultNicknameWhenNicknameIsBlank(String nickname) {
