@@ -13,6 +13,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.validation.constraints.NotNull;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -37,6 +38,7 @@ public class Member extends BaseEntity {
     private Long memberId;
 
     @Column(updatable = false, nullable = false)
+    @NotNull
     private String email;
 
     @Column(length = MAX_NICKNAME_LENGTH, nullable = false)
@@ -49,10 +51,12 @@ public class Member extends BaseEntity {
     private String profileImageUrl;
 
     @Column(updatable = false, nullable = false)
+    @NotNull
     private String providerId;
 
     @Enumerated(EnumType.STRING)
     @Column(updatable = false, nullable = false)
+    @NotNull
     private Provider provider;
 
     public static Member signUp(
