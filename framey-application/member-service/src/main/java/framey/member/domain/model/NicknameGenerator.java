@@ -23,7 +23,7 @@ public class NicknameGenerator {
             return BASE_NICKNAME;
         }
 
-        return truncate(stripedNickname.strip(), MAX_NICKNAME_LENGTH);
+        return truncate(stripedNickname, MAX_NICKNAME_LENGTH);
     }
 
     public static String appendSuffix(String base) {
