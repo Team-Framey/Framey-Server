@@ -8,7 +8,7 @@ import java.util.Random;
 import static framey.member.domain.constant.NicknameConstant.BASE_NICKNAME;
 import static framey.member.domain.constant.NicknameConstant.EDGE_WHITESPACE;
 import static framey.member.domain.constant.NicknameConstant.MAX_NICKNAME_LENGTH;
-import static framey.member.domain.constant.NicknameConstant.MIN_SUFFIX_DIGITS;
+import static framey.member.domain.constant.NicknameConstant.SUFFIX_DIGITS;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class NicknameGenerator {
@@ -28,7 +28,7 @@ public class NicknameGenerator {
 
     public static String appendSuffix(String base) {
         int baseLength = base.codePointCount(0, base.length());
-        int suffixLength = Math.max(MIN_SUFFIX_DIGITS, MAX_NICKNAME_LENGTH - baseLength);
+        int suffixLength = Math.max(SUFFIX_DIGITS, MAX_NICKNAME_LENGTH - baseLength);
 
         StringBuilder nickname = new StringBuilder(truncate(base, MAX_NICKNAME_LENGTH - suffixLength));
         for (int i = 0; i < suffixLength; i++) {
