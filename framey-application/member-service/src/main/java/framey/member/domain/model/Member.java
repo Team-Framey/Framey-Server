@@ -62,7 +62,7 @@ public class Member extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(updatable = false, nullable = false)
-    @NotBlank
+    @NotNull
     private Provider provider;
 
     private Member(
