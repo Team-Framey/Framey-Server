@@ -90,7 +90,7 @@ public class Member extends BaseEntity {
         }
 
 
-        // NOTE: 이모지를 1글자로 처리하기 위해 codePointCount 사용
+        // NOTE: 유니코드 코드 포인트 기준으로 길이 검증
         if (stripedNickname.codePointCount(0, stripedNickname.length()) > MAX_NICKNAME_LENGTH) {
             throw new BusinessException(MemberErrorCode.MAX_NICKNAME_LENGTH);
         }
