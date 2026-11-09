@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static framey.member.domain.constant.NicknameConstant.BASE_NICKNAME;
 import static framey.member.domain.constant.NicknameConstant.EDGE_WHITESPACE;
@@ -32,7 +33,7 @@ public class NicknameGenerator {
 
         StringBuilder nickname = new StringBuilder(truncate(base, MAX_NICKNAME_LENGTH - suffixLength));
         for (int i = 0; i < suffixLength; i++) {
-            nickname.append(new Random().nextInt(10));
+            nickname.append(ThreadLocalRandom.current().nextInt(10));
         }
         return nickname.toString();
     }
