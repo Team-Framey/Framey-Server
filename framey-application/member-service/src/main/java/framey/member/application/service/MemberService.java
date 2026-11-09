@@ -20,7 +20,8 @@ public class MemberService {
 
     @Transactional
     public Member createMember(CreateMember createMember) {
-        // TODO: provider 및 providerId 검증
+        // TODO: 추후 AuthService와 같은 createMember를 처리하는 쪽에서 Transaction 재시도 로직 추가
+
         Member member = Member.signUp(
             createMember.email(),
             resolveNickname(createMember.nickname()),
