@@ -44,7 +44,6 @@ class MemberTest {
 
         Assertions.assertThat(nickname.length()).isEqualTo(10);
         Assertions.assertThat(member.getNickname()).isEqualTo(nickname);
-        Assertions.assertThat(member.getNickname()).isEqualTo(nickname);
         Assertions.assertThat(member.getEntityId()).isNotNull();
     }
 
@@ -55,7 +54,6 @@ class MemberTest {
         Member member = Member.signUp("framey@test.com", nickname, "", "test-1", Provider.GOOGLE);
 
         Assertions.assertThat(nickname.codePointCount(0, nickname.length())).isEqualTo(10);
-        Assertions.assertThat(member.getNickname()).isEqualTo(nickname);
         Assertions.assertThat(member.getNickname()).isEqualTo(nickname);
         Assertions.assertThat(member.getEntityId()).isNotNull();
     }

@@ -13,6 +13,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -39,26 +41,44 @@ public class Member extends BaseEntity {
     private Long memberId;
 
     @Column(updatable = false, nullable = false)
-    @NotNull
+    @NotBlank
+    @Email
     private String email;
 
     @Column(length = MAX_NICKNAME_LENGTH, nullable = false)
+    @NotBlank
     private String nickname;
 
     @Column(updatable = false, unique = true, nullable = false)
     private UUID entityId;
 
     @Column(length = 2048, nullable = false)
+    @NotBlank
     private String profileImageUrl;
 
     @Column(updatable = false, nullable = false)
-    @NotNull
+    @NotBlank
     private String providerId;
 
     @Enumerated(EnumType.STRING)
     @Column(updatable = false, nullable = false)
-    @NotNull
+    @NotBlank
     private Provider provider;
+
+    private Member(
+        String email,
+        String nickname,
+        String profileImageUrl,
+        String providerId,
+        Provider provider
+    ) {
+        this.email = email;
+        this.nickname = validateNickname(nickname);
+        this.profileImageUrl = profileImageUrl;
+        this.providerId = providerId;
+        this.provider = provider;
+        this.entityId = UUID.randomUUID();
+    }
 
     public static Member signUp(
         String email,
@@ -67,15 +87,7 @@ public class Member extends BaseEntity {
         String providerId,
         Provider provider
     ) {
-        Member member = new Member();
-        member.email = email;
-        member.nickname = validateNickname(nickname);
-        member.profileImageUrl = profileImageUrl;
-        member.providerId = providerId;
-        member.provider = provider;
-        member.entityId = UUID.randomUUID();
-
-        return member;
+        return new Member(email, nickname, profileImageUrl, providerId, provider);
     }
 
     private static String validateNickname(String nickname) {
@@ -90,7 +102,7 @@ public class Member extends BaseEntity {
         }
 
 
-        // NOTE: 이모지를 1글자로 처리하기 위해 codePointCount 사용
+        // NOTE: 유니코드 코드 포인트 기준으로 길이 검증
         if (stripedNickname.codePointCount(0, stripedNickname.length()) > MAX_NICKNAME_LENGTH) {
             throw new BusinessException(MemberErrorCode.MAX_NICKNAME_LENGTH);
         }

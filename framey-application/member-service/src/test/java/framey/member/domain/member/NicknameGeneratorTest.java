@@ -18,7 +18,7 @@ class NicknameGeneratorTest {
         String generatedNickname = appendSuffix(normalize(nickname));
 
         Assertions.assertThat(generatedNickname).isNotBlank();
-        Assertions.assertThat(generatedNickname).matches("^프레이미\\d{6}$");
+        Assertions.assertThat(generatedNickname).matches("^framey\\d{4}$");
     }
 
     @ParameterizedTest
