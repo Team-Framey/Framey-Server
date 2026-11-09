@@ -60,6 +60,21 @@ public class Member extends BaseEntity {
     @NotNull
     private Provider provider;
 
+    private Member(
+        String email,
+        String nickname,
+        String profileImageUrl,
+        String providerId,
+        Provider provider
+    ) {
+        this.email = email;
+        this.nickname = validateNickname(nickname);
+        this.profileImageUrl = profileImageUrl;
+        this.providerId = providerId;
+        this.provider = provider;
+        this.entityId = UUID.randomUUID();
+    }
+
     public static Member signUp(
         String email,
         String nickname,
@@ -67,15 +82,7 @@ public class Member extends BaseEntity {
         String providerId,
         Provider provider
     ) {
-        Member member = new Member();
-        member.email = email;
-        member.nickname = validateNickname(nickname);
-        member.profileImageUrl = profileImageUrl;
-        member.providerId = providerId;
-        member.provider = provider;
-        member.entityId = UUID.randomUUID();
-
-        return member;
+        return new Member(email, nickname, profileImageUrl, providerId, provider);
     }
 
     private static String validateNickname(String nickname) {
