@@ -1,4 +1,4 @@
-package framey.member.domain.member;
+package framey.member.domain.model.member;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
