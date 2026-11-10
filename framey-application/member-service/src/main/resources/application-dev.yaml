@@ -31,3 +31,6 @@ management:
     health:
       probes:
         enabled: true
+
+member:
+  default-profile-image-url: http://dev-swagger.framey.kr/assets/default-profile-image.png
