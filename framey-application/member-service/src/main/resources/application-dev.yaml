@@ -33,4 +33,4 @@ management:
         enabled: true
 
 member:
-  default-profile-image-url: http://dev-swagger.framey.kr/assets/default-profile-image.png
+  default-profile-image-url: https://dev-swagger.framey.kr/assets/default-profile-image.png

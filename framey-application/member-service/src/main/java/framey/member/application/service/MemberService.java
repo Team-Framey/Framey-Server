@@ -2,6 +2,7 @@ package framey.member.application.service;
 
 import framey.common.exception.BusinessException;
 import framey.member.application.dto.CreateMember;
+import framey.member.config.MemberProperties;
 import framey.member.domain.constant.NicknameConstant;
 import framey.member.domain.constant.Provider;
 import framey.member.domain.exception.MemberErrorCode;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class MemberService {
     private final MemberRepository memberRepository;
+    private final MemberProperties memberProperties;
 
     @Transactional
     public Member createMember(CreateMember createMember) {
@@ -25,7 +27,7 @@ public class MemberService {
         Member member = Member.signUp(
             createMember.email(),
             resolveNickname(createMember.nickname()),
-            createMember.profileImageUrl(),
+            resolveProfileImageUrl(createMember.profileImageUrl()),
             "123", // TODO: 임시 providerId
             Provider.GOOGLE // TODO: 임시 provider
         );
@@ -49,5 +51,13 @@ public class MemberService {
         }
 
         throw new BusinessException(MemberErrorCode.NICKNAME_GENERATION_FAILED);
+    }
+
+    private String resolveProfileImageUrl(String profileImageUrl) {
+        if (profileImageUrl == null || profileImageUrl.isBlank()) {
+            return memberProperties.defaultProfileImageUrl();
+        }
+
+        return profileImageUrl;
     }
 }

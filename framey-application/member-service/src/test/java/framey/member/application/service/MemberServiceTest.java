@@ -2,18 +2,19 @@ package framey.member.application.service;
 
 import framey.common.exception.BusinessException;
 import framey.member.application.dto.CreateMember;
+import framey.member.config.MemberProperties;
 import framey.member.domain.constant.NicknameConstant;
 import framey.member.domain.exception.MemberErrorCode;
 import framey.member.domain.model.Member;
 import framey.member.domain.repository.MemberRepository;
 import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -26,11 +27,17 @@ import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class MemberServiceTest {
+    private static final String DEFAULT_PROFILE_IMAGE_URL = "https://test.framey/default-profile-image.png";
+
     @Mock
     private MemberRepository memberRepository;
 
-    @InjectMocks
     private MemberService memberService;
+
+    @BeforeEach
+    void setUp() {
+        memberService = new MemberService(memberRepository, new MemberProperties(DEFAULT_PROFILE_IMAGE_URL));
+    }
 
     @Test
     @DisplayName("소셜 닉네임이 사용 중이 아니면 해당 닉네임을 그대로 사용한다")
@@ -113,5 +120,33 @@ class MemberServiceTest {
 
         Assertions.assertThat(newMember.getNickname()).matches("^프레이미\\d{6}");
         then(memberRepository).should(times(3)).existsByNickname(anyString());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = " ")
+    @NullAndEmptySource
+    @DisplayName("프로필 이미지가 없으면 기본 프로필 이미지를 사용한다")
+    void useDefaultProfileImageWhenProfileImageIsBlank(String profileImageUrl) {
+        given(memberRepository.save(any(Member.class))).willAnswer(inv -> inv.getArgument(0));
+
+        CreateMember member = new CreateMember("프레이미", "framey@exam.com", profileImageUrl);
+
+        Member newMember = memberService.createMember(member);
+
+        Assertions.assertThat(newMember.getProfileImageUrl()).isEqualTo(DEFAULT_PROFILE_IMAGE_URL);
+    }
+
+    @Test
+    @DisplayName("프로필 이미지가 있으면 그대로 사용한다")
+    void useSocialProfileImageWhenPresent() {
+        given(memberRepository.save(any(Member.class))).willAnswer(inv -> inv.getArgument(0));
+
+        String profileImageUrl = "https://test.framey/profile.png";
+
+        CreateMember member = new CreateMember("프레이미", "framey@exam.com", profileImageUrl);
+
+        Member newMember = memberService.createMember(member);
+
+        Assertions.assertThat(newMember.getProfileImageUrl()).isEqualTo(profileImageUrl);
     }
 }
