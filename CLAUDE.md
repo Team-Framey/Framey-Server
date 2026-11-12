@@ -20,6 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `./gradlew test` — 전체 테스트 (JUnit 5)
 - `./gradlew :framey-application:member-service:test` — 특정 모듈 테스트
 - `./gradlew :framey-application:member-service:test --tests "ClassName"` — 단일 테스트 클래스
+- `@SpringBootTest`(contextLoads 등)는 실제 PostgreSQL이 필요 — 로컬 실행 시 `TEST_DB_URL`/`TEST_DB_USER`/`TEST_DB_PASSWORD` env 필수 (`application-test.yaml` 참조, CI는 postgres:16 서비스 컨테이너로 주입). 도메인 단위 테스트(MemberTest 등)는 DB 없이 동작한다.
 
 ### Code Style
 - `./gradlew check` — Checkstyle 포함 전체 검증 (naver-checkstyle 규칙, violation 0건 요구)
@@ -113,7 +114,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 이벤트 발행은 트랜잭션 커밋 후에 수행한다 — 상세는 `inter-service-communication` skill 참조.
 
 ### 현재 상태
-- 각 서비스는 아직 `Application` 클래스만 있는 초기 상태. 기존 패턴이 없으면 `.claude/skills/`의 규칙을 기준 패턴으로 삼는다.
+- `member-service`에 첫 도메인(`Member` Entity, `NicknameGenerator`, `MemberErrorCode`)이 구현됨 — 해당 패턴을 기존 코드 기준 패턴으로 참조할 수 있다.
+- `collage-service`, `archive-service`는 아직 `Application` 클래스만 있는 초기 상태. 기존 패턴이 없으면 `.claude/skills/`의 규칙을 기준 패턴으로 삼는다.
 
 ### Error Handling
 - 비즈니스 오류는 `BusinessException` + 도메인별 `ErrorCode` enum 사용.
@@ -136,6 +138,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **배포**: checkout된 커밋의 `deploy-dev.sh`가 변경 서비스만 `docker compose build` → NGINX 변경 시 새 conf를 임시 컨테이너(`framey-dev` 네트워크, letsencrypt ro 마운트)에서 `nginx -t` 사전 검증 — 실패 시 컨테이너 재생성 전에 배포 중단 → `up -d --no-build --no-deps` → 검증 전부 통과 시에만 성공 SHA 기록 (실패 시 state 미갱신 → 다음 배포가 누적 diff 재계산)
 - **검증**: 앱 `/actuator/health` `"UP"` 폴링(최대 200s) → nginx·swagger 컨테이너 미실행 시 ERROR로 즉시 실패(DEV는 상시 실행 환경 전제) → `nginx -t`는 항상, reload는 NGINX 변경 시에만 → `/health` + swagger 응답 → `https://dev-swagger.framey.kr/` 외부 검증 → OpenAPI 검증(nginx/swagger 변경 시 3개 앱 전부, 앱만 변경 시 해당 앱만). 변경 파일이 있으나 배포 대상이 없으면 NOTICE로 파일 목록 출력.
 - **부분 배포 실패**: 성공 SHA 미기록은 "다음 배포가 누적 diff를 재시도"하게 만들 뿐, 이미 뜬 컨테이너를 이전 상태로 되돌리지는 않는다(이전 이미지 태그를 보관하지 않으므로 롤백 불가). 실패 시 `docker compose ps -a` + 대상 서비스 로그가 출력되고, 수정 후 다음 배포가 동일 서비스를 다시 빌드·검증한다.
+- **DB 스키마**: dev 프로필은 `ddl-auto: validate`이고 마이그레이션 도구(Flyway 등)는 없다 — 새 Entity 추가 시 dev DB에 테이블을 수동 생성하지 않으면 앱 기동 후 healthcheck 실패로 배포가 중단된다. Entity 추가 PR과 함께 dev DB DDL을 준비하거나 스키마 전략을 합의한다.
 - **포트**: member 8081 / collage 8082 / archive 8083
 - **SSL**: 호스트 certbot + systemd timer로 갱신 (`framey-infrastructure/systemd/framey-certbot-renew.{service,timer}` — 하루 2회, deploy-hook으로 nginx reload). 서버 최초 설정:
   - `sudo cp framey-infrastructure/systemd/framey-certbot-renew.{service,timer} /etc/systemd/system/`
