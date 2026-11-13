@@ -4,6 +4,7 @@ import framey.common.exception.BusinessException;
 import framey.member.application.dto.CreateMember;
 import framey.member.config.MemberProperties;
 import framey.member.domain.constant.NicknameConstant;
+import framey.member.domain.constant.ProfileImageConstant;
 import framey.member.domain.exception.MemberErrorCode;
 import framey.member.domain.model.Member;
 import framey.member.domain.repository.MemberRepository;
@@ -148,5 +149,38 @@ class MemberServiceTest {
         Member newMember = memberService.createMember(member);
 
         Assertions.assertThat(newMember.getProfileImageUrl()).isEqualTo(profileImageUrl);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "not a url",
+        "http://test.framey/profile.png",
+        "https:///",
+        "profile.png"
+    })
+    @DisplayName("프로필 이미지 URL이 유효하지 않으면 기본 프로필 이미지를 사용한다")
+    void useDefaultProfileImageWhenProfileImageUrlIsInvalid(String profileImageUrl) {
+        given(memberRepository.save(any(Member.class))).willAnswer(inv -> inv.getArgument(0));
+
+        CreateMember member = new CreateMember("프레이미", "framey@exam.com", profileImageUrl);
+
+        Member newMember = memberService.createMember(member);
+
+        Assertions.assertThat(newMember.getProfileImageUrl()).isEqualTo(DEFAULT_PROFILE_IMAGE_URL);
+    }
+
+    @Test
+    @DisplayName("이미지 URL 길이가 너무 길면 기본 프로필 이미지를 사용한다")
+    void useDefaultProfileImageWhenProfileImageUrlIsTooLong() {
+        given(memberRepository.save(any(Member.class))).willAnswer(inv -> inv.getArgument(0));
+
+        String prefix = "https://test.framey/";
+        String tooLongUrl = prefix + "a".repeat(ProfileImageConstant.MAX_PROFILE_IMAGE_URL_LENGTH - prefix.length() + 1);
+
+        CreateMember member = new CreateMember("프레이미", "framey@exam.com", tooLongUrl);
+
+        Member newMember = memberService.createMember(member);
+
+        Assertions.assertThat(newMember.getProfileImageUrl()).isEqualTo(DEFAULT_PROFILE_IMAGE_URL);
     }
 }

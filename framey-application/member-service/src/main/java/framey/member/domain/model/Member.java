@@ -2,6 +2,7 @@ package framey.member.domain.model;
 
 import framey.common.exception.BusinessException;
 import framey.common.jpa.BaseEntity;
+import framey.member.domain.constant.ProfileImageConstant;
 import framey.member.domain.constant.Provider;
 import framey.member.domain.exception.MemberErrorCode;
 import jakarta.persistence.Entity;
@@ -52,7 +53,7 @@ public class Member extends BaseEntity {
     @Column(updatable = false, unique = true, nullable = false)
     private UUID entityId;
 
-    @Column(length = 2048, nullable = false)
+    @Column(length = ProfileImageConstant.MAX_PROFILE_IMAGE_URL_LENGTH, nullable = false)
     @NotBlank
     private String profileImageUrl;
 
