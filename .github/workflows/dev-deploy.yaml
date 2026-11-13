@@ -2,8 +2,11 @@ name: Dev Deploy
 
 on:
   push:
-    branches:
-      - dev
+    #dev 브렌치
+    branches: [dev]
+    #claude 리뷰 폴더 문서 ignore
+    paths-ignore:
+      - '.claude/reviews/**'
 
 concurrency:
   group: dev-deploy
@@ -13,6 +16,7 @@ jobs:
   deploy:
     name: Deploy to DEV EC2
     runs-on: ubuntu-latest
+
     steps:
       - name: Deploy to DEV EC2
         uses: appleboy/ssh-action@v1
@@ -30,6 +34,7 @@ jobs:
           envs: DEV_DB_URL,DEV_DB_USER,DEV_DB_PASSWORD
 
           command_timeout: 30m
+
           script: |
             set -e
             echo "======================================="

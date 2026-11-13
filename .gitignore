@@ -49,3 +49,6 @@ logs/
 
 ### Local Docker Data ###
 **/docker/**/data/
+
+### Claude review workflow 산출물 (일시 파일) ###
+.analysis/

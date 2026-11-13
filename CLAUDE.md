@@ -67,6 +67,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 도메인별 Entity, DTO, Event는 공유 모듈로 이동하지 않는다.
 - 공유 모듈 변경은 사용자 승인 후 진행한다.
 
+### Architecture Rules(ArchUnit)
+
+- ArchUnit 의존성은 루트 `build.gradle`의 `subprojects`에서 공통 제공된다 (`com.tngtech.archunit:archunit-junit5`).
+- **역할 분담**: ArchUnit은 패키지 의존·어노테이션·계층 접근처럼 정적으로 검증 가능한 규칙을 담당한다. 트랜잭션 경계의 의미, 이벤트 계약 호환성, 설계 의도 판단처럼 기계 검증이 어려운 규칙은 Claude 검증과 리뷰에 남긴다.
+- **테스트 작성 책임**: 아키텍처 테스트는 각 서비스(`framey.{domain}` 패키지)의 담당자가 해당 도메인 설계에 맞게 작성한다. 모든 서비스에 동일한 테스트 파일을 의무적으로 두지 않는다.
+- **팀 공통 검증 대상** (아래 규칙 위반은 PR CI에서 자동 실패해야 한다):
+  - 서비스 간 직접 의존 금지 — `framey.{domain}`는 다른 서비스의 `framey.{domain}` 패키지를 의존하지 않는다.
+  - `@RestController`는 `..infrastructure..` 패키지에 의존하지 않는다.
+  - `@RestController`는 `@Entity` 클래스에 의존하지 않는다 (Entity 응답 노출 금지).
+  - `..infrastructure.event.handler..`의 Handler는 `..infrastructure.persistence..`에 직접 의존하지 않는다.
+  - `framey.common`은 서비스 패키지와 `framey.web`/`framey.monitoring`에 의존하지 않는다.
+- **`@AnalyzeClasses` 범위**는 `framey.{domain}`으로 한정하고 `ImportOption.DoNotIncludeTests`를 사용한다.
+- 아직 클래스가 없는 모듈/패키지에 적용하는 규칙에는 `.allowEmptyShould(true)`를 사용한다.
+- 공통 규칙의 추가·수정은 팀 합의 후 진행하고, 해당 테스트와 이 문서를 함께 갱신한다.
+
 ### Domain
 - JPA Entity는 프로젝트 BaseEntity를 상속한다.
 - Entity 간 불필요한 양방향 연관관계를 생성하지 않는다.
@@ -127,9 +142,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## CI/CD (dev 브랜치 기준)
 
 ### PR CI (`.github/workflows/pr-ci.yaml`)
-- **트리거**: `dev` 브랜치 대상 PR
-- **실행**: `./gradlew clean test check --no-daemon` (Checkstyle + 테스트 통과 필수)
+- **트리거**: `dev` 브랜치 대상 PR (`opened`, `synchronize`, `reopened`)
+- **실행**: `./gradlew clean build --no-daemon` (Checkstyle + 테스트 + ArchUnit 통과 필수)
+- **SonarCloud**: `./gradlew sonar -Dsonar.qualitygate.wait=true` — Quality Gate 실패 시 PR CI 실패. 커버리지는 `sonar.coverage.jacoco.xmlReportPaths`(`build.gradle`)로 멀티모듈 JaCoCo XML 수집.
+- **설정 값**: `SONAR_TOKEN`(secret), `SONAR_PROJECT_KEY`(repo variable), organization `team-framey`, host `https://sonarcloud.io`
 - **인프라**: postgres:16-alpine 서비스 컨테이너, `TEST_DB_URL`/`TEST_DB_USER`/`TEST_DB_PASSWORD` env로 테스트 DB 주입
+- **검증 도구 역할**: CodeRabbit은 코드 정확성 리뷰, SonarCloud는 버그·취약점·커버리지 게이트, ArchUnit·Checkstyle은 기계적 구조 규칙을 PR 단계에서 차단한다.
+
+### Claude Architecture Review (`.github/workflows/claude-architecture-review.yaml`)
+- **트리거**: `dev` 대상 PR `closed` + `merged == true` — 병합 후 사후 검증 (배포 차단 아님)
+- **분석 기준**: 최신 dev가 아닌 해당 PR의 `merge_commit_sha` 체크아웃
+- **구조**: 3개 job — `analyze`(read 권한, Claude 분석 + 출력 스키마 검증 + artifact 저장) → `publish-report`(dev에 보고서 커밋, 최대 5회 재시도) / `publish-issues`(중복 제거 후 Issue 게시)
+- **분석 프롬프트**: `.claude/commands/pr-verify.md` — 입력은 `.analysis/`(PR diff, CodeRabbit 리뷰, SonarCloud 이슈, 기존 Issue), 출력은 보고서 + `issues.json` 두 파일로 제한
+- **보고서**: `.claude/reviews/pr-{N}-review.md` — 동일 경로 덮어쓰기로 재실행 시 갱신
+- **Issue 중복 제거**: `.github/scripts/publish-issues.sh` — 본문 `<!-- claude-dedup: KEY -->` 마커로 동일 문제 식별. open이면 재발견 댓글, closed면 critical/major만 재오픈, `claude-occurrence` 마커로 동일 PR 댓글 중복 방지
+- **동시성**: `concurrency: claude-analysis-pr-{N}`로 동일 PR 직렬화
+- **필요 시크릿**: `ANTHROPIC_API_KEY` (외에 `GITHUB_TOKEN`, `SONAR_TOKEN` 사용)
 
 ### Dev Deploy (`.github/workflows/dev-deploy.yaml`)
 - **트리거**: `dev` 브랜치 push → SSH로 dev EC2 접속 후 `/opt/framey/bin/deploy-dispatch.sh ${{ github.sha }}` 실행 (`command_timeout: 30m`). dispatcher는 repo 밖 고정 경로에 설치 — 서버 최초 설정: `sudo mkdir -p /opt/framey/bin && sudo cp framey-infrastructure/scripts/deploy-dispatch.sh /opt/framey/bin/ && sudo chmod +x /opt/framey/bin/deploy-dispatch.sh`
@@ -148,7 +176,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Container Health**: 5개 서비스 모두 compose `healthcheck` 보유 — 앱 3개는 actuator, swagger는 `GET :8080/`, nginx는 `GET /health`(`default.conf` 정의)
 
 ### Branch Flow
-- feature/* → dev (PR + CI) → dev push 시 자동 dev 배포
+- feature/* → dev (PR: CodeRabbit 리뷰 + CI + SonarCloud Quality Gate) → 병합 시 dev 자동 배포 + Claude 사후 아키텍처 검증
+- Claude 검증 보고서 커밋(`.claude/reviews/**`만 변경)은 `paths-ignore`로 dev 배포를 트리거하지 않는다
 - `main`은 배포 워크플로우 없음 — 프로덕션 배포 정책은 별도 정의 필요
 
 
