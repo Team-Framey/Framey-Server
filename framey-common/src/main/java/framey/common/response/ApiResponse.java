@@ -5,6 +5,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.Objects;
+
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ApiResponse<T> {
@@ -34,7 +36,8 @@ public class ApiResponse<T> {
         return new ApiResponse<>(
                 successCode.getValue(), //code
                successCode.getMessage(), //message
-                data
+                //null 비허용
+                Objects.requireNonNull(data, "응답 데이터 Null 일수 없습니다.")
         );
     }
 

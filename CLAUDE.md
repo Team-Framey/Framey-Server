@@ -141,6 +141,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## CI/CD (dev 브랜치 기준)
 
+### Git Hooks (`.githooks/` — 로컬 1차 검증 계층)
+- `git config core.hooksPath .githooks` 설정이 필요하다 (clone 후 1회).
+- **pre-commit**: 스테이징된 `.java` 파일이 속한 모듈의 `checkstyleMain`만 실행. 대상 파일/모듈 없으면 즉시 통과.
+- **pre-push**: push 대상 ref를 순회 — `main`/`dev` push면 `./gradlew clean check`, 그 외 브랜치는 `./gradlew check` 실행. 브랜치 삭제 push(local_sha=0)나 태그 등 비브랜치 ref는 건너뛰고, 검사 대상이 0이면 검증 없이 통과.
+- 역할: CI 실패 전 로컬에서 Checkstyle/테스트를 먼저 걸러내는 Hook 계층 (PR CI와 동일 규칙).
+
 ### PR CI (`.github/workflows/pr-ci.yaml`)
 - **트리거**: `dev` 브랜치 대상 PR (`opened`, `synchronize`, `reopened`)
 - **실행**: `./gradlew clean build --no-daemon` (Checkstyle + 테스트 + ArchUnit 통과 필수)
@@ -162,10 +168,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Dev Deploy (`.github/workflows/dev-deploy.yaml`)
 - **트리거**: `dev` 브랜치 push → SSH로 dev EC2 접속 후 `/opt/framey/bin/deploy-dispatch.sh ${{ github.sha }}` 실행 (`command_timeout: 30m`). dispatcher는 repo 밖 고정 경로에 설치 — 서버 최초 설정: `sudo mkdir -p /opt/framey/bin && sudo cp framey-infrastructure/scripts/deploy-dispatch.sh /opt/framey/bin/ && sudo chmod +x /opt/framey/bin/deploy-dispatch.sh`
 - **실행 구조**: `deploy-dispatch.sh`(EC2 고정 진입점) — `flock` 획득 → `git fetch` → TARGET이 `origin/dev`의 ancestor인지 검증 → **checkout 전에** 구형 배포 skip(TARGET이 마지막 성공 SHA의 ancestor면 조기 종료) → 서버 tracked 변경 감지 시 거부 → detached HEAD로 TARGET checkout → **해당 커밋의** `deploy-dev.sh` 실행. checkout과 배포 실행이 모두 같은 잠금 범위 안에 있어 동시 배포 충돌 방지. `deploy-dev.sh` 직접 실행 시 HEAD!=TARGET 가드로 차단됨. `FORCE_FULL=true` 환경변수로 수동 full deploy 가능.
-- **변경 감지**: `deploy-dev.sh`가 `.git/framey-dev-success`(마지막 성공 SHA)와 대상 SHA의 `git diff`로 누적 변경분 판단. 공유 모듈(`framey-common`, `framey-web`, `framey-monitoring`, 루트 gradle 파일, `framey-infrastructure/docker/dev|scripts|systemd`, workflow 자체) 변경 시 전체 재배포. 베이스 SHA 유실·비선형 이력이면 full deploy. 어떤 규칙에도 매칭되지 않는 변경 파일은 WARNING으로 출력 (새 모듈/루트 설정 누락 감지용).
+- **변경 감지**: `deploy-dev.sh`가 `.git/framey-dev-success`(마지막 성공 SHA)와 대상 SHA의 `git diff`로 누적 변경분 판단. 워크플로우에는 paths-filter가 없고 파일 규칙은 전부 이 스크립트에 있다:
+  - **공유 모듈**(`framey-common`, `framey-web`, `framey-monitoring`, 루트 `build.gradle`/`settings.gradle`/`gradle.properties`, `gradle/*`, `gradlew`, `gradlew.bat`, `.dockerignore`) → 앱 3개(member/collage/archive)만 선택
+  - **개별 서비스**(`framey-application/{서비스}/*`) → 해당 앱만
+  - **`framey-infrastructure/swagger-dev/*`** → swagger만, **`framey-infrastructure/nginx/*`** → nginx만
+  - **배포 인프라**(`framey-infrastructure/docker/dev|scripts|systemd`, `.github/workflows/dev-deploy.yaml`) → 5개 서비스 전체
+  - **무시 대상**(`.github/*`, `.claude/*`, docs, CLAUDE.md 등) → 배포 없음
+  - **full deploy**(5개 전체): `FORCE_FULL=true`, 마지막 성공 SHA 유실, 또는 비선형 이력(브랜치 갈라짐)일 때
+  - 어떤 규칙에도 매칭되지 않는 변경 파일은 WARNING으로 출력하되 배포 대상으로 선택하지 않는다 (새 모듈/루트 설정 누락 감지용 — 새 디렉터리 추가 시 반드시 위 case 규칙에 매핑을 추가해야 배포 누락이 없다).
 - **동시 배포 제어**: `concurrency: dev-deploy`(workflow 직렬화) + `deploy-dispatch.sh`의 `flock`(`.git/framey-dev.lock`, 최대 20분 대기). 이미 배포된 SHA로의 구형 배포 요청은 자동 skip.
 - **배포**: checkout된 커밋의 `deploy-dev.sh`가 변경 서비스만 `docker compose build` → NGINX 변경 시 새 conf를 임시 컨테이너(`framey-dev` 네트워크, letsencrypt ro 마운트)에서 `nginx -t` 사전 검증 — 실패 시 컨테이너 재생성 전에 배포 중단 → `up -d --no-build --no-deps` → 검증 전부 통과 시에만 성공 SHA 기록 (실패 시 state 미갱신 → 다음 배포가 누적 diff 재계산)
-- **검증**: 앱 `/actuator/health` `"UP"` 폴링(최대 200s) → nginx·swagger 컨테이너 미실행 시 ERROR로 즉시 실패(DEV는 상시 실행 환경 전제) → `nginx -t`는 항상, reload는 NGINX 변경 시에만 → `/health` + swagger 응답 → `https://dev-swagger.framey.kr/` 외부 검증 → OpenAPI 검증(nginx/swagger 변경 시 3개 앱 전부, 앱만 변경 시 해당 앱만). 변경 파일이 있으나 배포 대상이 없으면 NOTICE로 파일 목록 출력.
+- **NGINX conf 주의**: `default.conf`는 단일 파일 bind mount라 checkout으로 inode가 바뀌면 기존 컨테이너가 이전 설정을 참조할 수 있다 → NGINX 변경 시 `compose up --force-recreate`로 컨테이너를 재생성해 새 파일을 다시 마운트한다.
+- **검증**: 앱 `/actuator/health` `"UP"` 폴링(최대 200s) → nginx·swagger 컨테이너 미실행 시 ERROR로 즉시 실패(DEV는 상시 실행 환경 전제) → `nginx -t` + reload는 항상 실행 → `/health` + swagger 응답 → `https://dev-swagger.framey.kr/` 외부 검증 → OpenAPI 검증(nginx/swagger 변경 시 3개 앱 전부, 앱만 변경 시 해당 앱만). 변경 파일이 있으나 배포 대상이 없으면 NOTICE로 파일 목록 출력.
 - **부분 배포 실패**: 성공 SHA 미기록은 "다음 배포가 누적 diff를 재시도"하게 만들 뿐, 이미 뜬 컨테이너를 이전 상태로 되돌리지는 않는다(이전 이미지 태그를 보관하지 않으므로 롤백 불가). 실패 시 `docker compose ps -a` + 대상 서비스 로그가 출력되고, 수정 후 다음 배포가 동일 서비스를 다시 빌드·검증한다.
 - **DB 스키마**: dev 프로필은 `ddl-auto: validate`이고 마이그레이션 도구(Flyway 등)는 없다 — 새 Entity 추가 시 dev DB에 테이블을 수동 생성하지 않으면 앱 기동 후 healthcheck 실패로 배포가 중단된다. Entity 추가 PR과 함께 dev DB DDL을 준비하거나 스키마 전략을 합의한다.
 - **포트**: member 8081 / collage 8082 / archive 8083

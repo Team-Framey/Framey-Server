@@ -6,6 +6,7 @@
 echo "📸 FRAMEY pre-push 실행"
 
 FULL_CHECK=false
+CHECK_COUNT=0
 while read -r local_ref local_sha remote_ref remote_sha; do
 
   # 브랜치 삭제는 검사 생략
@@ -32,7 +33,16 @@ while read -r local_ref local_sha remote_ref remote_sha; do
       ;;
   esac
 
+  CHECK_COUNT=$((CHECK_COUNT + 1))
+
 done
+
+# 검사 대상이 없으면(삭제 push만 등) 검증 없이 통과
+if [ "$CHECK_COUNT" -eq 0 ]; then
+  echo "➡️ 검사 대상 ref 없음 — 검증 생략"
+  exit 0
+fi
+
 if [ "$FULL_CHECK" = true ]; then
   echo "🚀 전체 Clean Check 실행"
 

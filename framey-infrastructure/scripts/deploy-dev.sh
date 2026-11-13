@@ -309,19 +309,19 @@ if ((${#SERVICES[@]})); then
 
     echo "Starting: ${SERVICES[*]}"
 
-   FORCE=()
-       if [[ "$NGINX" == true ]]; then
-           FORCE=(--force-recreate)
-       fi
-       compose up \
-           -d \
-           --no-build \
-           --no-deps \
-           "${FORCE[@]}" \
-           "${SERVICES[@]}" compose up \
+    # default.conf는 단일 파일 bind mount — checkout으로 inode가 바뀌면
+    # 기존 컨테이너가 이전 설정을 계속 참조할 수 있으므로
+    # NGINX 변경 시 컨테이너를 강제 재생성해 새 파일을 다시 마운트한다.
+    FORCE=()
+    if [[ "$NGINX" == true ]]; then
+        FORCE=(--force-recreate)
+    fi
+
+    compose up \
         -d \
         --no-build \
         --no-deps \
+        "${FORCE[@]}" \
         "${SERVICES[@]}"
 
     echo "✅ 배포한 Spring Boot 서비스만 대상 검사 "
