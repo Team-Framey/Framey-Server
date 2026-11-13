@@ -1,6 +1,7 @@
 plugins {
 	id 'org.springframework.boot' version '4.1.0' apply false
 	id 'io.spring.dependency-management' version '1.1.7' apply false
+	id 'org.sonarqube' version '7.5.0.8588'
 }
 
 allprojects {
@@ -15,6 +16,7 @@ allprojects {
 subprojects {
 	apply plugin: 'java'
 	apply plugin: 'checkstyle'
+	apply plugin: 'jacoco'
 	apply plugin: 'io.spring.dependency-management'
 
 	java {
@@ -30,16 +32,16 @@ subprojects {
 	}
 
 	dependencies {
-		// Lombok
 		compileOnly 'org.projectlombok:lombok'
 		annotationProcessor 'org.projectlombok:lombok'
 
 		testCompileOnly 'org.projectlombok:lombok'
 		testAnnotationProcessor 'org.projectlombok:lombok'
 
-		// Test
 		testImplementation 'org.springframework.boot:spring-boot-starter-test'
 		testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+		testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.0'
 	}
 
 	checkstyle {
@@ -69,5 +71,31 @@ subprojects {
 
 	tasks.withType(Test).configureEach {
 		useJUnitPlatform()
+		finalizedBy tasks.named('jacocoTestReport')
+	}
+
+	tasks.named('jacocoTestReport', JacocoReport) {
+		dependsOn tasks.withType(Test)
+
+		reports {
+			xml.required = true
+			html.required = false
+		}
+	}
+}
+
+sonar {
+	properties {
+		property 'sonar.projectKey',
+				System.getenv('SONAR_PROJECT_KEY') ?: 'Team-Framey_Framey-Server'
+
+		property 'sonar.organization',
+				System.getenv('SONAR_ORGANIZATION') ?: 'team-framey'
+
+		property 'sonar.host.url',
+				System.getenv('SONAR_HOST_URL') ?: 'https://sonarcloud.io'
+
+		property 'sonar.coverage.jacoco.xmlReportPaths',
+				'**/build/reports/jacoco/test/jacocoTestReport.xml'
 	}
 }

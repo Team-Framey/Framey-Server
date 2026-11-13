@@ -185,14 +185,12 @@ public class UserController {
 public ApiResponse<UserResponse> getUser(
         @PathVariable final Long userId
 ) {
-    return ApiResponse.success(
+    return ApiResponse.successWithData(
             SuccessCode.OK,
             userService.getUser(userId)
     );
 }
 ```
-
----
 
 ### 요청 파라미터 문서화
 
@@ -208,7 +206,7 @@ public ApiResponse<UserResponse> getUser(
         )
         @PathVariable final Long userId
 ) {
-    return ApiResponse.success(
+    return ApiResponse.successWithData(
             SuccessCode.OK,
             userService.getUser(userId)
     );
@@ -226,7 +224,7 @@ public ApiResponse<List<UserResponse>> getUsers(
         )
         @RequestParam(defaultValue = "0") final int page
 ) {
-    return ApiResponse.success(
+    return ApiResponse.successWithData(
             SuccessCode.OK,
             userService.getUsers(page)
     );
@@ -330,7 +328,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 public ApiResponse<LoginResponse> login(
         @Valid @RequestBody final LoginRequest request
 ) {
-    return ApiResponse.success(
+    return ApiResponse.successWithData(
             SuccessCode.OK,
             authService.login(request)
     );
@@ -438,7 +436,7 @@ API에서 발생 가능한 에러를 문서화하려면 `@ApiErrorCodeExample`�
 public ApiResponse<UserResponse> getUser(
         @PathVariable final Long userId
 ) {
-    return ApiResponse.success(
+    return ApiResponse.successWithData(
             SuccessCode.OK,
             userService.getUser(userId)
     );
@@ -568,7 +566,7 @@ public class UserController {
             )
             @PathVariable final Long userId
     ) {
-        return ApiResponse.success(
+        return ApiResponse.successWithData(
                 SuccessCode.OK,
                 userService.getUser(userId)
         );

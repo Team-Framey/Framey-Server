@@ -1,0 +1,62 @@
+#!/bin/bash
+#set -euo pipefail
+#ROOT_DIR="$(git rev-parse --show-toplevel)"
+#cd "$ROOT_DIR"
+
+echo "📸 FRAMEY pre-push 실행"
+
+FULL_CHECK=false
+CHECK_COUNT=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+
+  # 브랜치 삭제는 검사 생략
+  if [[ "$local_sha" =~ ^0+$ ]]; then
+    continue
+  fi
+  case "$remote_ref" in
+    refs/heads/main)
+      echo "⚠️ main push 감지"
+      FULL_CHECK=true
+      ;;
+    refs/heads/dev)
+      echo "⚠️ dev push 감지"
+      FULL_CHECK=true
+      ;;
+    refs/heads/*)
+      branch="${remote_ref#refs/heads/}"
+      echo " feature/기타 브랜치 push: $branch"
+      ;;
+
+    *)
+      echo "‼️ 브랜치 이외의 Ref — 별도 검사 생략"
+      continue
+      ;;
+  esac
+
+  CHECK_COUNT=$((CHECK_COUNT + 1))
+
+done
+
+# 검사 대상이 없으면(삭제 push만 등) 검증 없이 통과
+if [ "$CHECK_COUNT" -eq 0 ]; then
+  echo "➡️ 검사 대상 ref 없음 — 검증 생략"
+  exit 0
+fi
+
+if [ "$FULL_CHECK" = true ]; then
+  echo "🚀 전체 Clean Check 실행"
+
+  ./gradlew clean check --no-daemon || {
+    echo "✗ 전체 검증 실패 — Push 중단"
+    exit 1
+  }
+else
+  echo "➡️ Check 실행"
+  ./gradlew check --no-daemon || {
+    echo "⛔️ 검증 실패 — Push 중단"
+    exit 1
+  }
+
+fi
+echo "✅ pre-push 통과"
+exit 0
