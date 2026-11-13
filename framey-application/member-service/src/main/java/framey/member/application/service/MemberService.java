@@ -4,6 +4,7 @@ import framey.common.exception.BusinessException;
 import framey.member.application.dto.CreateMember;
 import framey.member.config.MemberProperties;
 import framey.member.domain.constant.NicknameConstant;
+import framey.member.domain.constant.ProfileImageConstant;
 import framey.member.domain.constant.Provider;
 import framey.member.domain.exception.MemberErrorCode;
 import framey.member.domain.model.Member;
@@ -12,6 +13,9 @@ import framey.member.domain.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.net.URI;
+import java.net.URISyntaxException;
 
 @Service
 @RequiredArgsConstructor
@@ -54,10 +58,23 @@ public class MemberService {
     }
 
     private String resolveProfileImageUrl(String profileImageUrl) {
-        if (profileImageUrl == null || profileImageUrl.isBlank()) {
+        if (!isValidProfileImageUrl(profileImageUrl)) {
             return memberProperties.defaultProfileImageUrl();
         }
 
         return profileImageUrl;
+    }
+
+    private boolean isValidProfileImageUrl(String url) {
+        if (url == null || url.isBlank() || url.length() > ProfileImageConstant.MAX_PROFILE_IMAGE_URL_LENGTH) {
+            return false;
+        }
+
+        try {
+            URI uri = new URI(url);
+            return "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null;
+        } catch (URISyntaxException e) {
+            return false;
+        }
     }
 }
