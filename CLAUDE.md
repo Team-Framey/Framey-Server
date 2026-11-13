@@ -61,7 +61,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Dependency Rules
 - 서비스 간 직접 의존 금지 — 서비스는 공유 모듈(`framey-common`, `framey-web`, `framey-monitoring`)만 의존.
-- `framey-common`/`framey-web`/`framey-monitoring` 변경은 3개 서비스 모두 재배포 트리거 (CI paths-filter의 `shared` 필터).
+- `framey-common`/`framey-web`/`framey-monitoring` 변경은 3개 앱 서비스(member/collage/archive) 재배포 트리거 (`deploy-dev.sh`의 파일 규칙, swagger/nginx는 제외).
 - 새 코드는 해당 서비스 모듈 내부에 작성한다.
 - 2개 이상 서비스에서 사용하는 기술적 공통 기능만 공유 모듈 승격을 검토한다.
 - 도메인별 Entity, DTO, Event는 공유 모듈로 이동하지 않는다.
@@ -141,16 +141,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## CI/CD (dev 브랜치 기준)
 
-### Git Hooks (`.githooks/` — 로컬 1차 검증 계층)
-- `git config core.hooksPath .githooks` 설정이 필요하다 (clone 후 1회).
-- **pre-commit**: 스테이징된 `.java` 파일이 속한 모듈의 `checkstyleMain`만 실행. 대상 파일/모듈 없으면 즉시 통과.
-- **pre-push**: push 대상 ref를 순회 — `main`/`dev` push면 `./gradlew clean check`, 그 외 브랜치는 `./gradlew check` 실행. 브랜치 삭제 push(local_sha=0)나 태그 등 비브랜치 ref는 건너뛰고, 검사 대상이 0이면 검증 없이 통과.
-- 역할: CI 실패 전 로컬에서 Checkstyle/테스트를 먼저 걸러내는 Hook 계층 (PR CI와 동일 규칙).
+로컬 Git Hooks(`.githooks/`, 위 Essential Commands 참조)가 1차 검증 계층이며, 이후 PR CI → 병합 → Deploy + Claude 사후검증 순으로 이어진다.
 
 ### PR CI (`.github/workflows/pr-ci.yaml`)
 - **트리거**: `dev` 브랜치 대상 PR (`opened`, `synchronize`, `reopened`)
 - **실행**: `./gradlew clean build --no-daemon` (Checkstyle + 테스트 + ArchUnit 통과 필수)
-- **SonarCloud**: `./gradlew sonar -Dsonar.qualitygate.wait=true` — Quality Gate 실패 시 PR CI 실패. 커버리지는 `sonar.coverage.jacoco.xmlReportPaths`(`build.gradle`)로 멀티모듈 JaCoCo XML 수집.
+- **SonarCloud**: `./gradlew sonar -Dsonar.qualitygate.wait=true` — Quality Gate 실패 시 PR CI 실패. `SONAR_TOKEN`이 없는 PR(fork 등)에서는 Sonar 단계만 건너뛰고 빌드·테스트는 유지. 커버리지는 `sonar.coverage.jacoco.xmlReportPaths`(`build.gradle`)로 멀티모듈 JaCoCo XML 수집.
 - **설정 값**: `SONAR_TOKEN`(secret), `SONAR_PROJECT_KEY`(repo variable), organization `team-framey`, host `https://sonarcloud.io`
 - **인프라**: postgres:16-alpine 서비스 컨테이너, `TEST_DB_URL`/`TEST_DB_USER`/`TEST_DB_PASSWORD` env로 테스트 DB 주입
 - **검증 도구 역할**: CodeRabbit은 코드 정확성 리뷰, SonarCloud는 버그·취약점·커버리지 게이트, ArchUnit·Checkstyle은 기계적 구조 규칙을 PR 단계에서 차단한다.

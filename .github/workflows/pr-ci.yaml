@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       TEST_DB_URL: jdbc:postgresql://localhost:5432/framey_test
       TEST_DB_USER: test
       TEST_DB_PASSWORD: test
@@ -57,6 +58,7 @@ jobs:
         run: ./gradlew clean build --no-daemon
 
       - name: SonarQube Cloud Analysis
+        if: ${{ env.SONAR_TOKEN != '' }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io

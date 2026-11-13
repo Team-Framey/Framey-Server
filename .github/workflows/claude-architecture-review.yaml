@@ -5,12 +5,17 @@ on:
     branches: [dev]
     types: [closed]
 
+# 동일 PR의 중복 실행 방지
 concurrency:
   group: claude-analysis-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
-  # Calude 아키텍처 분석
+
+  # ==================================================
+  # 1. Claude 아키텍처 분석
+  # ==================================================
+
   analyze:
     name: Analyze Merged PR
 
@@ -30,7 +35,11 @@ jobs:
       SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
 
     steps:
-      # merged 코드 체크아웃
+
+      # --------------------------------------------------
+      # 병합된 코드 체크아웃
+      # --------------------------------------------------
+
       - name: Checkout merged code
         uses: actions/checkout@v4
         with:
@@ -38,7 +47,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # --------------------------------------------------
       # PR 변경 사항 수집
+      # --------------------------------------------------
+
       - name: Collect PR changes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -59,7 +71,10 @@ jobs:
 
           test -s .analysis/pr-diff.diff
 
+      # --------------------------------------------------
       # CodeRabbit 리뷰 수집
+      # --------------------------------------------------
+
       - name: Collect CodeRabbit reviews
         env:
           GH_TOKEN: ${{ github.token }}
@@ -128,7 +143,10 @@ jobs:
             .analysis/general-comments.json \
             > .analysis/coderabbit-comments.json
 
+      # --------------------------------------------------
       # SonarCloud 분석 결과 수집
+      # --------------------------------------------------
+
       - name: Collect SonarCloud issues
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -203,7 +221,6 @@ jobs:
             fi
 
             page=$((page + 1))
-
           done
 
           jq -n \
@@ -214,7 +231,10 @@ jobs:
           echo '{"status":"ok"}' \
             > .analysis/sonar-status.json
 
-      # 기존 리뷰 이슈 수집
+      # --------------------------------------------------
+      # 기존 Claude 리뷰 Issue 수집
+      # --------------------------------------------------
+
       - name: Collect existing review issues
         env:
           GH_TOKEN: ${{ github.token }}
@@ -237,12 +257,16 @@ jobs:
               ]' \
             > .analysis/open-issues.json
 
+      # --------------------------------------------------
       # Claude 아키텍처 검증
+      # --------------------------------------------------
+
       - name: Run Claude analysis
         uses: anthropics/claude-code-action@v1
 
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ github.token }}
 
           prompt: |
             PR #${{ github.event.pull_request.number }}의
@@ -271,7 +295,10 @@ jobs:
           claude_args: >-
             --allowedTools "Read,Write,Edit,Grep,Glob"
 
+      # --------------------------------------------------
       # Claude 분석 결과 검증
+      # --------------------------------------------------
+
       - name: Validate Claude outputs
         run: |
           set -euo pipefail
@@ -287,7 +314,13 @@ jobs:
 
             all(.[];
               (.title | type == "string" and length > 0) and
-              (.severity | IN("critical","major","minor")) and
+
+              (.severity | IN(
+                "critical",
+                "major",
+                "minor"
+              )) and
+
               (.category | IN(
                 "architecture",
                 "domain",
@@ -296,10 +329,15 @@ jobs:
                 "event",
                 "test"
               )) and
+
               (.dedup_key | type == "string" and length > 0) and
+              (.dedup_key | test("^[a-zA-Z0-9_./:-]+$")) and
+
               (.files | type == "array" and
                 all(.[]; type == "string")) and
+
               (.body | type == "string" and length > 0) and
+
               (.pr == (env.PR_NUMBER | tonumber))
             ) and
 
@@ -314,9 +352,7 @@ jobs:
                 -n "$(git diff --cached --name-only)" ]]; then
 
             echo "ERROR: Claude modified tracked files"
-
             git status --short
-
             exit 1
           fi
 
@@ -324,20 +360,20 @@ jobs:
           while IFS= read -r path; do
 
             case "$path" in
-
               .analysis/*|"$REPORT")
                 ;;
-
               *)
                 echo "Unexpected generated file: $path"
                 exit 1
                 ;;
-
             esac
 
           done < <(git ls-files --others --exclude-standard)
 
+      # --------------------------------------------------
       # 검증된 결과 Artifact 저장
+      # --------------------------------------------------
+
       - name: Upload verified outputs
         uses: actions/upload-artifact@v4
 
@@ -352,8 +388,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  # ==================================================
+  # 2. 아키텍처 보고서 게시
+  # ==================================================
 
-  # 보고서 작성
   publish-report:
     name: Publish Architecture Report
 
@@ -373,25 +411,35 @@ jobs:
 
     steps:
 
+      # --------------------------------------------------
+      # DEV 브랜치 체크아웃
+      # --------------------------------------------------
+
       - name: Checkout dev
         uses: actions/checkout@v4
         with:
           ref: dev
           persist-credentials: true
 
+      # --------------------------------------------------
+      # Claude 분석 결과 다운로드
+      # --------------------------------------------------
+
       - name: Download Claude outputs
         uses: actions/download-artifact@v4
-
         with:
           name: claude-review-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
           path: ${{ runner.temp }}/claude-output
+
+      # --------------------------------------------------
+      # 보고서 DEV 브랜치 게시
+      # --------------------------------------------------
 
       - name: Commit review report to dev
         run: |
           set -euo pipefail
 
           REPORT=".claude/reviews/pr-${PR_NUMBER}-review.md"
-
           SOURCE="${RUNNER_TEMP}/claude-output/${REPORT}"
 
           test -s "$SOURCE"
@@ -403,7 +451,6 @@ jobs:
           for attempt in 1 2 3 4 5; do
 
             git fetch origin dev
-
             git checkout -B dev origin/dev
 
             mkdir -p .claude/reviews
@@ -426,16 +473,16 @@ jobs:
             fi
 
             echo "Push failed (attempt ${attempt})"
-
             sleep 2
-
           done
 
           echo "Unable to publish report"
           exit 1
 
+  # ==================================================
+  # 3. 아키텍처 Issue 게시
+  # ==================================================
 
-  # 이슈 작성
   publish-issues:
     name: Publish Architecture Issues
 
@@ -454,9 +501,12 @@ jobs:
     env:
       PR_NUMBER: ${{ github.event.pull_request.number }}
       REPO: ${{ github.repository }}
-      ISSUES_FILE: ${{ runner.temp }}/claude-output/.analysis/issues.json
 
     steps:
+
+      # --------------------------------------------------
+      # DEV 브랜치 체크아웃
+      # --------------------------------------------------
 
       - name: Checkout dev
         uses: actions/checkout@v4
@@ -464,16 +514,25 @@ jobs:
           ref: dev
           persist-credentials: false
 
+      # --------------------------------------------------
+      # Claude 분석 결과 다운로드
+      # --------------------------------------------------
+
       - name: Download Claude outputs
         uses: actions/download-artifact@v4
-
         with:
           name: claude-review-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
           path: ${{ runner.temp }}/claude-output
 
+      # --------------------------------------------------
+      # 중복 방지 Issue 게시
+      # --------------------------------------------------
+
       - name: Publish deduplicated issues
         env:
           GH_TOKEN: ${{ github.token }}
+          ISSUES_FILE: ${{ runner.temp }}/claude-output/.analysis/issues.json
 
         run: |
+          set -euo pipefail
           bash .github/scripts/publish-issues.sh
