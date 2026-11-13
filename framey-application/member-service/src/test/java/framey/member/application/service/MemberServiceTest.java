@@ -175,7 +175,8 @@ class MemberServiceTest {
         given(memberRepository.save(any(Member.class))).willAnswer(inv -> inv.getArgument(0));
 
         String prefix = "https://test.framey/";
-        String tooLongUrl = prefix + "a".repeat(ProfileImageConstant.MAX_PROFILE_IMAGE_URL_LENGTH - prefix.length() + 1);
+        String tooLongUrl = prefix
+            + "a".repeat(ProfileImageConstant.MAX_PROFILE_IMAGE_URL_LENGTH - prefix.length() + 1);
 
         CreateMember member = new CreateMember("프레이미", "framey@exam.com", tooLongUrl);
 
