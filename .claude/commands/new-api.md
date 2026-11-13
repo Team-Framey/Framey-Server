@@ -17,6 +17,7 @@ $ARGUMENTS에 지정된 API를 구현한다.
 
 ### 2. 기존 코드 분석
 - CLAUDE.md의 아키텍처 규칙을 확인한다.
+- 탐색 전 대상 서비스의 실제 패키지 구조를 확인한다: `find framey-application/{service}/src/main/java -type d`. Java 소스 루트는 `{모듈}/src/main/java`, 패키지 루트는 `framey.{domain}`이다.
 - 대상 서비스의 기존 패키지 구조와 구현 패턴을 분석한다.
 - 재사용 가능한 Entity, DTO, Repository, Service를 확인한다.
 - 기존 코드의 중복 구현을 방지한다.

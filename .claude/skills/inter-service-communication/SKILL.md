@@ -1,6 +1,6 @@
 ---
 name: inter-service-communication
-description: Apply when implementing HTTP communication or RabbitMQ events between FRAMEY services or external systems.
+description: Review HTTP communication, RabbitMQ messaging, service boundaries, and reliability patterns in FRAMEY.
 ---
 
 # Inter-Service Communication
@@ -29,17 +29,19 @@ FRAMEY 서비스 간 통신 및 외부 시스템 연동 시 계층 간 의존성
 ### 3. HTTP Communication
 #### Structure
 
-```text
-application/
-└── port/
-    └── MemberClientPort.java
+아래 구조는 `framey-application/{service}/src/main/java/framey/{domain}/` 하위에 배치한다. 작업 전 `find framey-application/{service}/src/main/java -type d`로 실제 패키지 구조를 확인한다.
 
-infrastructure/
-└── client/
-    ├── MemberHttpClientAdapter.java
-    └── dto/
-        ├── MemberClientRequest.java
-        └── MemberClientResponse.java
+```text
+framey-application/{service}/src/main/java/framey/{domain}/
+├── application/
+│   └── port/
+│       └── MemberClientPort.java
+└── infrastructure/
+    └── client/
+        ├── MemberHttpClientAdapter.java
+        └── dto/
+            ├── MemberClientRequest.java
+            └── MemberClientResponse.java
 ```
 
 #### Rules
@@ -58,18 +60,18 @@ infrastructure/
 #### Structure
 
 ```text
-application/
-└── port/
-    └── CollageEventPort.java
-
-infrastructure/
-└── event/
-    ├── dto/
-    │   └── CollageCreatedEventV1.java
-    ├── publisher/
-    │   └── CollageEventPublisher.java
-    └── handler/
-        └── CollageCreatedEventHandler.java
+framey-application/{service}/src/main/java/framey/{domain}/
+├── application/
+│   └── port/
+│       └── CollageEventPort.java
+└── infrastructure/
+    └── event/
+        ├── dto/
+        │   └── CollageCreatedEventV1.java
+        ├── publisher/
+        │   └── CollageEventPublisher.java
+        └── handler/
+            └── CollageCreatedEventHandler.java
 ```
 
 필요한 역할만 구현하며, 사용하지 않는 패키지는 미리 생성하지 않는다.

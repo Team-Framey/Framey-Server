@@ -57,6 +57,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `framey-monitoring` — 모니터링·Actuator 공통 설정.
 - `framey-application/{member,collage,archive}-service` — 각각 독립 실행 가능한 Spring Boot 앱. `framey-common`, `framey-web`을 `api`, `framey-monitoring`을 `implementation`으로 의존.
 - `framey-infrastructure` — docker-compose(local/dev/test), nginx, swagger-dev 등 배포 인프라. Gradle 모듈 아님.
+- **소스 루트**: 모든 Java 소스는 `{모듈}/src/main/java` 하위에 있다. 서비스 모듈의 패키지 루트는 `framey.{domain}` (member → `framey.member`, collage → `framey.collage`, archive → `framey.archive`), 공유 모듈은 `framey.common`/`framey.web`/`framey.monitoring`. 파일 탐색 전 `find {모듈}/src/main/java -type d`로 실제 패키지 구조를 확인한다.
 
 ### Dependency Rules
 - 서비스 간 직접 의존 금지 — 서비스는 공유 모듈(`framey-common`, `framey-web`, `framey-monitoring`)만 의존.

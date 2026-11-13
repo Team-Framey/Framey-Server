@@ -1,6 +1,6 @@
 ---
 name: domain-design
-description: Entity and domain model rules for FRAMEY services. Apply when creating or modifying entities.
+description: Review FRAMEY entities and domain models for DDD principles, package conventions, and architectural violations.
 ---
 
 # Domain Design
@@ -13,5 +13,9 @@ description: Entity and domain model rules for FRAMEY services. Apply when creat
 - 생성은 생성자 또는 정적 팩터리 메서드로 제한한다
 
 ## 패키지
-- 새 Entity는 해당 서비스(`framey.{domain}`)의 domain 패키지에 배치
-- 도메인별 `ErrorCode` enum은 서비스 내 exception 패키지에 배치
+- Java 소스 루트: `framey-application/{service}/src/main/java`
+- 패키지 루트: `framey.{domain}`
+- 모든 서비스(member, collage, archive)는 동일한 패키지 컨벤션을 따른다. 
+- Entity는 framey/{domain}/domain/model/ 패키지에 배치한다.
+- 새 Entity는 `framey-application/{service}/src/main/java/framey/{domain}/domain/` 하위에 배치 (기존 member-service는 `framey/member/domain/model/`) — 작업 전 `find framey-application/{service}/src/main/java -type d`로 실제 구조를 확인한다
+- 도메인별 `ErrorCode` enum은 `framey/{domain}/exception/` 패키지에 배치

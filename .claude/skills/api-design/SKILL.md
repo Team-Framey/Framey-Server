@@ -1,6 +1,6 @@
 ---
 name: api-design
-description: Controller, Service, DTO implementation rules for FRAMEY services. Apply when implementing API endpoints.
+description: Review FRAMEY controllers, services, DTOs, exception handling, and API conventions.
 ---
 
 # API Design
@@ -89,6 +89,8 @@ public record MemberResponse(
 - Controller/Service에서 `try-catch`로 응답을 만들지 않는다 — `CommonExceptionHandler`가 처리한다.
 
 ## 참조
-- 응답 래퍼: `framey-common/framey/common/response/ApiResponse.java`
-- 예외: `framey-common/framey/common/exception/BusinessException.java`
-- 공통 에러 코드 형식: `framey-common/framey/common/exception/CommonErrorCode.java`
+모든 Java 소스는 `{모듈}/src/main/java/` 하위에 있다. 파일 탐색 전 `find {대상 모듈}/src/main/java -type d` 등으로 실제 패키지 구조를 먼저 확인한다.
+
+- 응답 래퍼: `framey-common/src/main/java/framey/common/response/ApiResponse.java`
+- 예외: `framey-common/src/main/java/framey/common/exception/BusinessException.java`
+- 공통 에러 코드 형식: `framey-common/src/main/java/framey/common/exception/CommonErrorCode.java`
