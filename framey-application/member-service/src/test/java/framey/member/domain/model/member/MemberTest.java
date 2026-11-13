@@ -1,4 +1,4 @@
-package framey.member.domain.member;
+package framey.member.domain.model.member;
 
 import framey.common.exception.BusinessException;
 import framey.member.domain.constant.Provider;

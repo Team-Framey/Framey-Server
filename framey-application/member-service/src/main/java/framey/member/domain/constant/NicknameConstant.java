@@ -13,4 +13,5 @@ public final class NicknameConstant {
     );
     public static final String BASE_NICKNAME = "framey";
     public static final int SUFFIX_DIGITS = 4;
+    public static final int MAX_RETRY_COUNT = 5;
 }
