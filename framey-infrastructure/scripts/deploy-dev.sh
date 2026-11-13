@@ -309,7 +309,16 @@ if ((${#SERVICES[@]})); then
 
     echo "Starting: ${SERVICES[*]}"
 
-    compose up \
+   FORCE=()
+       if [[ "$NGINX" == true ]]; then
+           FORCE=(--force-recreate)
+       fi
+       compose up \
+           -d \
+           --no-build \
+           --no-deps \
+           "${FORCE[@]}" \
+           "${SERVICES[@]}" compose up \
         -d \
         --no-build \
         --no-deps \
@@ -361,10 +370,8 @@ if ((${#SERVICES[@]})); then
 
     docker exec framey-dev-nginx nginx -t
 
-    if [[ "$NGINX" == true ]]; then
-        echo "Reloading Nginx"
-        docker exec framey-dev-nginx nginx -s reload
-    fi
+    echo "Reloading Nginx"
+    docker exec framey-dev-nginx nginx -s reload
 
     docker exec framey-dev-nginx \
         wget -T 5 -qO- \

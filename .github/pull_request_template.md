@@ -14,3 +14,6 @@
 
 ## Summary By CodeRabbit
 @coderabbitai 요약
+
+## 💬 리뷰 요구사항(선택)
+> 리뷰어가 특별히 봐주었으면 하는 부분이 있다면 작성해주세요
