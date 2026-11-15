@@ -5,6 +5,7 @@
 ## Summary
 
 > 이번 PR에서 작업한 내용
+> Claude Issue(claude-review)를 해결한다면 `Closes #이슈번호`를 포함하고 `docs/plans`, `docs/solutions` 기록을 함께 커밋해주세요
 
 ## Test Plan
 > 구현 사항 검증
