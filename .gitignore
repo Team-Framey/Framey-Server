@@ -52,3 +52,5 @@ logs/
 
 ### Claude review workflow 산출물 (일시 파일) ###
 .analysis/
+.claude/settings.local.json
+.mcp.json
