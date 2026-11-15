@@ -3,7 +3,6 @@ package framey.member.domain.model;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
-import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static framey.member.domain.constant.NicknameConstant.BASE_NICKNAME;

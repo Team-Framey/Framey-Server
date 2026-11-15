@@ -1,0 +1,68 @@
+#!/bin/bash
+#set -euo pipefail
+#ROOT_DIR="$(git rev-parse --show-toplevel)"
+#cd "$ROOT_DIR"
+
+echo "📸 FRAMEY pre-commit 실행"
+
+echo "🚀 스테이징된 Java파일만 확인 중.. "
+mapfile -t CHANGED_FILES < <(
+  git diff --cached --name-only --diff-filter=ACMR |
+  grep '\.java$' || true
+)
+
+if [ ${#CHANGED_FILES[@]} -eq 0 ]; then
+  echo "➡️ 파일 변경 사항 없어 검사 생략.."
+  exit 0
+fi
+
+# 중복 Gradle Task 방지
+declare -A TASK_MAP
+
+for file in "${CHANGED_FILES[@]}"; do
+  case "$file" in
+    framey-common/*)
+      TASK_MAP[":framey-common:checkstyleMain"]=1
+      ;;
+    framey-web/*)
+      TASK_MAP[":framey-web:checkstyleMain"]=1
+      ;;
+    framey-monitoring/*)
+      TASK_MAP[":framey-monitoring:checkstyleMain"]=1
+      ;;
+    framey-application/member-service/*)
+      TASK_MAP[":framey-application:member-service:checkstyleMain"]=1
+      ;;
+    framey-application/collage-service/*)
+      TASK_MAP[":framey-application:collage-service:checkstyleMain"]=1
+      ;;
+    framey-application/archive-service/*)
+      TASK_MAP[":framey-application:archive-service:checkstyleMain"]=1
+      ;;
+  esac
+done
+
+if [ ${#TASK_MAP[@]} -eq 0 ]; then
+  echo "☑️ 검사 대상 모듈 없음 ..."
+  exit 0
+fi
+
+TASKS=("${!TASK_MAP[@]}")
+
+echo "⚠️ Checkstyle 검사 대상:"
+printf '  %s\n' "${TASKS[@]}"
+
+./gradlew "${TASKS[@]}" --no-daemon || {
+  echo "⛔️Checkstyle 실패 — 커밋 중단 (상세: build/reports/checkstyle/)"
+  exit 1
+}
+echo "🔥 pre-commit 통과"
+# test-code
+#case "$file" in
+ # */src/main/java/*)
+  #  TASK_MAP[":${module}:checkstyleMain"]=1
+   # ;;
+ # */src/test/java/*)
+  #  TASK_MAP[":${module}:checkstyleTest"]=1
+   # ;;
+# esac

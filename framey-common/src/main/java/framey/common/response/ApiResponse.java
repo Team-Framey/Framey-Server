@@ -5,18 +5,22 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.Objects;
+
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ApiResponse<T> {
 
     private String code;
-
     private String message;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private T data;
 
-    public static ApiResponse<Void> success(final SuccessCode successCode) {
+    //공통
+    public static ApiResponse<Void> success(
+            final SuccessCode successCode
+    ) {
         return new ApiResponse<>(
                 successCode.getValue(),
                 successCode.getMessage(),
@@ -24,14 +28,16 @@ public class ApiResponse<T> {
         );
     }
 
-    public static <T> ApiResponse<T> success(
+    //data
+    public static <T> ApiResponse<T> successWithData(
             final SuccessCode successCode,
             final T data
     ) {
         return new ApiResponse<>(
-                successCode.getValue(),
-                successCode.getMessage(),
-                data
+                successCode.getValue(), //code
+               successCode.getMessage(), //message
+                //null 비허용
+                Objects.requireNonNull(data, "응답 데이터 Null 일수 없습니다.")
         );
     }
 

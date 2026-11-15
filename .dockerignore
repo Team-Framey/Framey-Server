@@ -28,3 +28,5 @@ framey-env/
 # 빌드에 불필요한 파일
 *.pem
 *.md
+.claude/settings.local.json
+.mcp.json
