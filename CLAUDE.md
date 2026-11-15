@@ -165,10 +165,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Claude가 만든 `claude-review` Issue를 해결하면서 해결 지식을 저장소에 축적하는 흐름. 배지는 결과 표시일 뿐, 핵심은 기록의 재사용이다.
 - **흐름**: Claude Issue 자동 생성(`publish-issues.sh`, 변경 없음) → 개발자가 Issue를 `Closes #N`으로 연결한 PR 작성 → Compound Engineering 플러그인으로 Plan → Work → Review → Compound 수행 → PR 시 기록 검증 → 성공 시 배지 자동 표시
 - **대상 판별**: PR에 연결된(`closingIssuesReferences`) Issue 중 `claude-review` 라벨이 있는 PR만 검증. 그 외 PR은 배지 없음, 병합 차단 없음. fork PR은 토큰 권한상 제외.
-- **검증 기준** (`.github/scripts/verify-compound.sh`): `docs/plans/*.md`(Plan 기록) + `docs/solutions/**/*.md`(Compound 기록, frontmatter `title/category/tags/issue/applied_to` 필수) + `applied_to`로 지정한 `CLAUDE.md`/`.claude/skills/**/SKILL.md`가 **같은 PR에서 갱신**되어야 함. Work/Review 단계 자체는 산출물로 증명할 수 없어 검증하지 않는다.
+- **검증 기준** (`.github/scripts/verify-compound.sh`): `claude-review-docs/plans/*.md`(Plan 기록) + `claude-review-docs/solutions/**/*.md`(Compound 기록, frontmatter `title/category/tags/issue/applied_to` 필수) + `applied_to`로 지정한 `CLAUDE.md`/`.claude/skills/**/SKILL.md`가 **같은 PR에서 갱신**되어야 함. Work/Review 단계 자체는 산출물로 증명할 수 없어 검증하지 않는다.
 - **지식 축적**: 기록 형식은 루트 `COMPOUND_ENGINEERING.md`, 작업 시작 시 기존 기록 조회·승격 규칙은 `.claude/skills/compound-knowledge/SKILL.md`. 재사용 가능한 규칙은 `CLAUDE.md`(프로젝트 전반) 또는 해당 `SKILL.md`(계층별)로 승격해 기존 AI 개발 환경과 통합한다.
 - **배지**: 성공 시 PR 본문에 `<!-- compound-engineering-badge:start/end -->` 블록으로 삽입, 재검증에서 실패하면 제거. 필요 권한 `pull-requests: write`.
-- **플러그인**: 설치/명령 이름은 버전에 따라 다르다(`/workflows:*` 또는 `/ce-*`) — 플러그인 문서 기준으로 사용. 산출물 경로는 기본값(`docs/plans`, `docs/solutions`)을 유지한다.
+- **플러그인**: 설치/명령 이름은 버전에 따라 다르다(`/workflows:*` 또는 `/ce-*`) — 플러그인 문서 기준으로 사용. 산출물 경로는 기본값(`claude-review-docs/plans`, `claude-review-docs/solutions`)을 유지한다.
 
 ### Dev Deploy (`.github/workflows/dev-deploy.yaml`)
 - **트리거**: `dev` 브랜치 push → SSH로 dev EC2 접속 후 `/opt/framey/bin/deploy-dispatch.sh ${{ github.sha }}` 실행 (`command_timeout: 30m`). dispatcher는 repo 밖 고정 경로에 설치 — 서버 최초 설정: `sudo mkdir -p /opt/framey/bin && sudo cp framey-infrastructure/scripts/deploy-dispatch.sh /opt/framey/bin/ && sudo chmod +x /opt/framey/bin/deploy-dispatch.sh`

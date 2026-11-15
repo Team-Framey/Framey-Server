@@ -18,4 +18,4 @@ description: Review FRAMEY entities and domain models for DDD principles, packag
 - 모든 서비스(member, collage, archive)는 동일한 패키지 컨벤션을 따른다. 
 - Entity는 framey/{domain}/domain/model/ 패키지에 배치한다.
 - 새 Entity는 `framey-application/{service}/src/main/java/framey/{domain}/domain/` 하위에 배치 (기존 member-service는 `framey/member/domain/model/`) — 작업 전 `find framey-application/{service}/src/main/java -type d`로 실제 구조를 확인한다
-- 도메인별 `ErrorCode` enum은 `framey/{domain}/exception/` 패키지에 배치
+- 도메인별 `ErrorCode` enum은 `framey/{domain}/domain/exception/` 패키지에 배치 (기존 member-service는 `framey/member/domain/exception/MemberErrorCode.java`)

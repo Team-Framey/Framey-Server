@@ -22,7 +22,7 @@ $ARGUMENTS에 지정된 도메인의 ErrorCode를 추가한다.
 - 동일한 의미의 기존 코드가 있는지 확인해 중복 생성을 방지한다.
 
 ### 3. ErrorCode 생성 또는 추가
-- 위치: `framey-application/{service}/src/main/java/framey/{domain}/exception/` (예: member → `framey-application/member-service/src/main/java/framey/member/exception/MemberErrorCode.java`) — 기존 패키지 구조와 다르면 실제 구조를 따른다.
+- 위치: `framey-application/{service}/src/main/java/framey/{domain}/domain/exception/` (예: member → `framey-application/member-service/src/main/java/framey/member/domain/exception/MemberErrorCode.java`) — 기존 패키지 구조와 다르면 실제 구조를 따른다.
 - `framey.common.response.ErrorCode` 인터페이스 구현
 - 코드 형식: `{도메인 약자}-###` (예: `MB-001`, `CL-001`, `AR-001`)
 - 한국어 메시지 + `HttpStatus` 지정
