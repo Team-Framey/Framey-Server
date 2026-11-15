@@ -57,7 +57,7 @@ jobs:
 
       # 토큰은 .git/config 에 남기지 않는다 (Claude 가 읽을 수 없게). push 는 별도 단계에서 직접 인증
       - name: Checkout PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ steps.guard.outputs.head_sha }}
           fetch-depth: 0
@@ -118,7 +118,7 @@ jobs:
       #  Claude 실행 (파일 작성만 가능, Bash 불가)
       - name: Run Claude
         id: claude
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
 
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -257,7 +257,7 @@ jobs:
       # 검증기는 PR 이 아니라 base 브랜치의 것을 사용 (PR 이 검증기를 바꾸지 못하게)
       - name: Checkout verifier from base
         if: steps.commit.outputs.result != 'rejected'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ env.BASE_BRANCH }}
           path: base

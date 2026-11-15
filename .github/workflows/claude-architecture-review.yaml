@@ -42,7 +42,7 @@ jobs:
 
       # 병합된 코드 체크아웃
       - name: Checkout merged code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
@@ -248,7 +248,7 @@ jobs:
 
       # Claude 아키텍처 검증
       - name: Run Claude analysis
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
 
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -355,7 +355,7 @@ jobs:
 
       # 검증된 결과 Artifact 저장
       - name: Upload verified outputs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
 
         with:
           name: claude-review-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
@@ -391,14 +391,14 @@ jobs:
 
       # DEV 브랜치 체크아웃
       - name: Checkout dev
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: dev
           persist-credentials: true
 
       # Claude 분석 결과 다운로드
       - name: Download Claude outputs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: claude-review-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
           path: ${{ runner.temp }}/claude-output
@@ -472,14 +472,14 @@ jobs:
     steps:
       # DEV 브랜치 체크아웃
       - name: Checkout dev
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: dev
           persist-credentials: false
 
       # Claude 분석 결과 다운로드
       - name: Download Claude outputs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: claude-review-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
           path: ${{ runner.temp }}/claude-output
