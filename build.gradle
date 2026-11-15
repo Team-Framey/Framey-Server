@@ -79,8 +79,14 @@ subprojects {
 
 		reports {
 			xml.required = true
+			xml.outputLocation = layout.buildDirectory
+					.file('reports/jacoco/test/jacocoTestReport.xml')
 			html.required = false
 		}
+	}
+
+	tasks.named('check') {
+		dependsOn tasks.named('jacocoTestReport')
 	}
 }
 

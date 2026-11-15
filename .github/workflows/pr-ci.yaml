@@ -66,6 +66,6 @@ jobs:
           SONAR_ORGANIZATION: team-framey
 
         run: |
-          ./gradlew sonar \
+          ./gradlew jacocoTestReport sonar \
             -Dsonar.qualitygate.wait=true \
             --no-daemon
