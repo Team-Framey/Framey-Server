@@ -9,3 +9,5 @@ server:
 springdoc:
   api-docs:
     enabled: true
+member:
+  default-profile-image-url: http://localhost:8081/assets/members/default-profile-image.png
