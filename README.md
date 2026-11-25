@@ -19,7 +19,7 @@
 
 ### 🧑🏻‍💻 Contributors - Developers
 
-| <a href="https://github.com/young0311"><img src="https://github.com/young0311.png" width="100" height="100"></a> | <a href="https://github.com/nimuseel"><img src="https://github.com/nimuseel.png" width="100" height="100"></a> | <a href="https://github.com/hwannn123"><img src="https://github.com/hwannn123.png" width="100" height="100"></a> |
+| <a href="https://github.com/young0311"><img src="https://github.com/young0311.png" width="120" height="120"></a> | <a href="https://github.com/nimuseel"><img src="https://github.com/nimuseel.png" width="120" height="120"></a> | <a href="https://github.com/hwannn123"><img src="https://github.com/hwannn123.png" width="120" height="120"></a> |
 |:---:|:---:|:---:|
 | **양화영 (Lead)** | **이수민** | **김환희** |
 
