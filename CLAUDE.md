@@ -34,7 +34,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Git Hooks (`.githooks/`)
 - 설정 자동화: Gradle `installGitHooks` 태스크가 `core.hooksPath=.githooks`를 설정한다 (모든 모듈 `compileJava` 전에 실행, `.git` 없으면 건너뜀). 수동: `./gradlew installGitHooks` 또는 `git config core.hooksPath .githooks`
 - `pre-commit`: staged `.java` 파일이 속한 모듈만 `checkstyleMain` 실행 (test 코드는 검사 안 함). bash 3.2(macOS 기본)에서도 동작하도록 `mapfile`/`declare -A` 미사용
-- `pre-push`: `dev`/`main` push 시 `./gradlew clean check` 전체 검증, 기타 브랜치는 `check`. `TEST_DB_URL`이 없으면 `docker-compose.test.yaml`로 테스트 DB(localhost:5434)를 자동 기동하고 `TEST_DB_*` 기본값(`framey_test`/`test`/`test`)을 주입한다 — Docker 실행 필요
+- `pre-push`: `dev`/`main` push 시 `./gradlew clean check` 전체 검증, 기타 브랜치는 `check`. `TEST_DB_URL`이 없으면 `docker-compose.test.yaml`로 테스트 DB(localhost:5434)를 자동 기동하고 `TEST_DB_*` 기본값(`framey_test`/`test`/`test12345`)을 주입한다 — Docker 실행 필요
 - 우회: `git commit --no-verify` / `git push --no-verify` (긴급 시에만)
 
 

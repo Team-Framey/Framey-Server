@@ -49,7 +49,7 @@ cd "$ROOT_DIR" || exit 1
 # @SpringBootTest 는 실제 PostgreSQL 이 필요 — 로컬 테스트 DB 준비
 export TEST_DB_NAME="${TEST_DB_NAME:-framey_test}"
 export TEST_DB_USER="${TEST_DB_USER:-test}"
-export TEST_DB_PASSWORD="${TEST_DB_PASSWORD:-test}"
+export TEST_DB_PASSWORD="${TEST_DB_PASSWORD:-test12345}"
 
 if [ -z "${TEST_DB_URL:-}" ]; then
   export TEST_DB_URL="jdbc:postgresql://localhost:5434/${TEST_DB_NAME}"

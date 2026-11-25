@@ -19,7 +19,7 @@ jobs:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       TEST_DB_URL: jdbc:postgresql://localhost:5432/framey_test
       TEST_DB_USER: test
-      TEST_DB_PASSWORD: test
+      TEST_DB_PASSWORD: test12345
 
     # 테스트용 PostgreSQL
     services:
@@ -28,7 +28,7 @@ jobs:
         env:
           POSTGRES_DB: framey_test
           POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
+          POSTGRES_PASSWORD: test12345
         ports:
           - 5432:5432
         options: >-
