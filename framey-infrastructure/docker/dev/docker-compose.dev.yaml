@@ -11,6 +11,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SERVER_PORT: 8081
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
       DEV_DB_URL: ${DEV_DB_URL}
       DEV_DB_USER: ${DEV_DB_USER}
       DEV_DB_PASSWORD: ${DEV_DB_PASSWORD}
@@ -37,6 +38,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SERVER_PORT: 8082
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
       DEV_DB_URL: ${DEV_DB_URL}
       DEV_DB_USER: ${DEV_DB_USER}
       DEV_DB_PASSWORD: ${DEV_DB_PASSWORD}
@@ -63,6 +65,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SERVER_PORT: 8083
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
       DEV_DB_URL: ${DEV_DB_URL}
       DEV_DB_USER: ${DEV_DB_USER}
       DEV_DB_PASSWORD: ${DEV_DB_PASSWORD}
