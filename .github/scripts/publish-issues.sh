@@ -4,7 +4,6 @@ set -euo pipefail
 
 
 echo "✅ 필수 환경변수 확인"
-
 : "${GH_TOKEN:?GH_TOKEN is required}"
 : "${REPO:?REPO is required}"
 : "${PR_NUMBER:?PR_NUMBER is required}"
@@ -23,6 +22,23 @@ TITLE_MAX=60
 if [[ ! "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
   echo "ERROR: Invalid PR_NUMBER: $PR_NUMBER"
   exit 1
+fi
+
+
+# 분석 대상 SHA (선택)
+#  같은 SHA의 재실행은 중복으로 건너뛰고 새 push(다른 SHA)에서 문제가 다시 확인되면 재오픈/댓글 처리
+SHA_SHORT=""
+SHA_TAG=""
+
+if [[ -n "${ANALYSIS_SHA:-}" ]]; then
+  if [[ ! "$ANALYSIS_SHA" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+    echo "ERROR: Invalid ANALYSIS_SHA: $ANALYSIS_SHA"
+    exit 1
+  fi
+
+  SHA_SHORT="${ANALYSIS_SHA:0:12}"
+  SHA_TAG="@${SHA_SHORT}"
+
 fi
 
 
@@ -68,14 +84,12 @@ fi
 count=$(jq 'length' "$ISSUES_FILE")
 
 if (( count == 0 )); then
-  echo "No issues to publish"
+  echo "게시할 이슈가 없습니다."
   exit 0
 fi
 
-echo "📋 Total issues to process: $count"
-
+echo "📋 게시 대상 이슈 수: ${count}개"
 echo "🔖 GitHub 라벨 확인"
-
 # 라벨 목록 조회 실패와 라벨 부재를 구분
 labels_file=$(mktemp)
 existing_file=$(mktemp)
@@ -88,16 +102,11 @@ if ! gh label list \
   --json name \
   --limit 1000 \
   > "$labels_file"; then
-
   echo "ERROR: Failed to fetch repository labels"
   exit 1
-
 fi
 
-# ------------------------------------------
 # FIX 라벨 확인
-# ------------------------------------------
-
 # 기존 프로젝트 라벨이므로 자동 생성하지 않음
 if ! jq -e \
   --arg name "$FIX_LABEL" \
@@ -109,10 +118,6 @@ if ! jq -e \
 
 fi
 
-# ------------------------------------------
-# Claude Review 라벨 생성
-# ------------------------------------------
-
 if ! jq -e \
   --arg name "$LABEL" \
   'any(.[]; .name == $name)' \
@@ -120,17 +125,14 @@ if ! jq -e \
 
   gh label create "$LABEL" \
     --repo "$REPO" \
-    --description "Claude post-merge architecture review" \
+    --description "Claude 기반 PR 머지 후 아키텍처 검토" \
     --color "7B61FF"
 
-  echo "Created label: $LABEL"
+  echo "🔖 라벨 생성: $LABEL"
 
 fi
 
-# severity 라벨은 사용하지 않는다. (FIX, claude-review 라벨만 부착)
-
-echo "🔎 기존 Claude Review Issue 조회"
-
+echo "🔎 기존 Claude 리뷰 이슈 조회"
 if ! gh api \
   "repos/$REPO/issues?state=all&labels=$LABEL&per_page=100" \
   --paginate --slurp \
@@ -151,15 +153,9 @@ if ! gh api \
 
 fi
 
-echo "🔥 Issue 게시 시작"
-
+echo "🔥 이슈 게시 시작"
 for ((i=0; i<count; i++)); do
-
-  # 제목 정규화
-  #  1) 줄바꿈 제거, 앞뒤 공백 제거
-  #  2) Claude가 이미 붙인 [CLAUDE-REVIEW] 접두사 제거
-  #  3) TITLE_MAX 초과 시 말줄임표로 요약
-  #  4) "[CLAUDE-REVIEW] 요약" 형식으로 조합
+  echo "🚀 이슈 제목 정규화"
   title=$(jq -r \
     --argjson i "$i" \
     --arg prefix "$TITLE_PREFIX" \
@@ -184,30 +180,18 @@ for ((i=0; i<count; i++)); do
     --argjson i "$i" \
     '.[$i].body' "$ISSUES_FILE")
 
-  echo ""
   echo "----------------------------------------"
-  echo "Processing issue $((i + 1))/$count"
-  echo "Title: $title"
-  echo "Severity: $severity"
-  echo "Dedup key: $dedup_key"
+  echo "이슈 처리 중: $((i + 1))/$count"
+  echo "이슈 제목: $title"
+  echo "심각도: $severity"
+  echo "중복 방지 키: $dedup_key"
   echo "----------------------------------------"
-
-  # ----------------------------------------
-  # 동일 문제 식별 마커
-  # ----------------------------------------
 
   marker="<!-- claude-dedup: ${dedup_key} -->"
 
-  # ----------------------------------------
-  # 동일 PR 재실행 식별 마커
-  # ----------------------------------------
+  occurrence="<!-- claude-occurrence: PR-${PR_NUMBER}${SHA_TAG}:${dedup_key} -->"
 
-  occurrence="<!-- claude-occurrence: PR-${PR_NUMBER}:${dedup_key} -->"
-
-  # ========================================
-  #  기존 Issue 검색
-  # ========================================
-
+  echo "👀 기존 이슈 중복 여부 확인"
   existing=$(jq -r \
     --arg marker "$marker" '
       [
@@ -221,21 +205,12 @@ for ((i=0; i<count; i++)); do
       @tsv
     ' "$existing_file")
 
-  # ========================================
-  # 기존 Issue가 있는 경우
-  # ========================================
-
   if [[ -n "$existing" ]]; then
-
     number=${existing%%$'\t'*}
     state=${existing#*$'\t'}
+    echo "🔎 기존 이슈 발견: #${number}"
 
-    echo "🔎 Existing issue found: #${number}"
-
-    # --------------------------------------
     # Issue 본문에서 occurrence 확인
-    # --------------------------------------
-
     if jq -e \
       --argjson number "$number" \
       --arg occurrence "$occurrence" \
@@ -244,33 +219,24 @@ for ((i=0; i<count; i++)); do
         ((.body // "") | contains($occurrence))
       )' "$existing_file" > /dev/null; then
 
-      echo "⏭️ Already recorded PR #${PR_NUMBER} in issue #${number} body"
-
+      echo "⚠️ #${number} 본문에 동일한 발견 내역이 이미 기록되어 있습니다."
       continue
-
     fi
 
-    # --------------------------------------
     # Issue 댓글 조회
-    # --------------------------------------
-
-    # API 조회 실패 시 중복 댓글이 생성되지 않도록
-    # 댓글 조회와 occurrence 검사를 분리
-
+    # API 조회 실패 시 중복 댓글이 생성되지않고 댓글 조회와 occurrence 검사를 분리
     if ! gh api \
       "repos/$REPO/issues/$number/comments?per_page=100" \
       --paginate --slurp \
       > "$comments_file"; then
 
       echo "ERROR: Failed to fetch comments for issue #${number}"
+
       exit 1
 
     fi
 
-    # --------------------------------------
     # 댓글 JSON 구조 검증
-    # --------------------------------------
-
     if ! jq -e '
       type == "array" and
       all(.[];
@@ -283,26 +249,18 @@ for ((i=0; i<count; i++)); do
 
     fi
 
-    # --------------------------------------
     # 댓글에서 occurrence 확인
-    # --------------------------------------
-
     if jq -e \
       --arg occurrence "$occurrence" \
       'any(.[][];
         (.body // "") | contains($occurrence)
       )' "$comments_file" > /dev/null; then
-
-      echo "⏭️ Already recorded PR #${PR_NUMBER} in issue #${number} comments"
-
+      echo "⚠️ #${number} 댓글에 동일한 발견 내역이 이미 기록되어 있습니다."
       continue
 
     fi
 
-    # --------------------------------------
     # 닫힌 Issue 재오픈
-    # --------------------------------------
-
     if [[ "$state" == "closed" ]]; then
 
       if [[ "$severity" == "critical" ||
@@ -310,36 +268,30 @@ for ((i=0; i<count; i++)); do
 
         gh issue reopen "$number" \
           --repo "$REPO"
-
-        echo "🔓 Reopened issue #${number}"
+        echo "🔓기존 이슈 재오픈: #${number}"
 
       else
-
-        echo "🔒 Issue #${number} remains closed (minor)"
+        echo "⚠️낮은 심각도(minor)로 인해 이슈 #${number}의 종료 상태를 유지합니다."
 
       fi
 
     fi
-
-    # --------------------------------------
-    # 새로운 PR에서 재발견된 경우 댓글 작성
-    # --------------------------------------
-
+    # 새로운 PR에서 재발견된 경우 댓글로 작성
     gh issue comment "$number" \
       --repo "$REPO" \
       --body "${occurrence}
 
-PR #${PR_NUMBER}에서 병합된 코드에 동일 문제가 확인되었습니다.
+PR #${PR_NUMBER}${SHA_SHORT:+ (${SHA_SHORT})}에서 동일한 문제가 다시 확인되었습니다.
 
-Severity: ${severity}"
+심각도: ${severity}"
 
-    echo "💬 Recorded PR #${PR_NUMBER} on issue #${number}"
+    echo "💬 이슈 #${number}에 PR #${PR_NUMBER} 재발견 내역 등록 완료"
 
     continue
 
   fi
 
-  echo "🚀 신규 Issue 생성"
+  echo "🚀 신규 이슈 생성"
 
   new_number=$(gh issue create \
     --repo "$REPO" \
@@ -353,22 +305,17 @@ ${body}
 
 ---
 발견 PR: #${PR_NUMBER}
-Severity: ${severity}" \
+심각도: ${severity}" \
     | sed -n 's#.*/issues/\([0-9][0-9]*\)$#\1#p')
 
   if [[ -z "$new_number" ]]; then
 
     echo "ERROR: Issue creation failed"
     exit 1
-
   fi
 
-  echo "✅ Created issue #${new_number}"
-
-
-  # GitHub Issue 본문에 저장된 마커를
-  # 로컬 캐시에도 동일하게 반영
-
+  echo "✅ 신규 이슈 생성 완료: #${new_number}"
+  # GitHub Issue 본문에 저장된 마커를 로컬 캐시에도 동일하게 반영
   jq \
     --argjson number "$new_number" \
     --arg marker "$marker" \
@@ -387,7 +334,6 @@ Severity: ${severity}" \
 
 done
 
-echo ""
 echo "========================================"
-echo "✅ Issue publication complete"
+echo "📤 이슈 게시 완료"
 echo "========================================"

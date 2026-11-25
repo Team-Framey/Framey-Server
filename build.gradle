@@ -13,6 +13,37 @@ allprojects {
 	}
 }
 
+tasks.register('installGitHooks') {
+	group = 'git hooks'
+	description = 'git core.hooksPath 를 .githooks 로 설정한다 (.git 이 없으면 건너뜀)'
+
+	def gitDir = layout.projectDirectory.dir('.git').asFile
+	def rootDir = layout.projectDirectory.asFile
+	def hooksDir = layout.projectDirectory.dir('.githooks').asFile
+
+	onlyIf { gitDir.exists() && hooksDir.isDirectory() }
+
+	doLast {
+		try {
+			def current = new ProcessBuilder('git', 'config', '--get', 'core.hooksPath')
+					.directory(rootDir).redirectErrorStream(true).start()
+			def value = current.inputStream.text.trim()
+			current.waitFor()
+
+			if (value != '.githooks') {
+				def set = new ProcessBuilder('git', 'config', 'core.hooksPath', '.githooks')
+						.directory(rootDir).start()
+				set.waitFor()
+				logger.lifecycle('Git hooks 활성화: core.hooksPath=.githooks')
+			}
+
+			hooksDir.listFiles()?.each { it.setExecutable(true) }
+		} catch (IOException e) {
+			logger.warn("Git hooks 설정 건너뜀: ${e.message}")
+		}
+	}
+}
+
 subprojects {
 	apply plugin: 'java'
 	apply plugin: 'checkstyle'
@@ -87,6 +118,10 @@ subprojects {
 
 	tasks.named('check') {
 		dependsOn tasks.named('jacocoTestReport')
+	}
+
+	tasks.named('compileJava') {
+		dependsOn rootProject.tasks.named('installGitHooks')
 	}
 }
 

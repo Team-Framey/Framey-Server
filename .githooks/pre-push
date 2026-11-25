@@ -3,7 +3,7 @@
 #ROOT_DIR="$(git rev-parse --show-toplevel)"
 #cd "$ROOT_DIR"
 
-echo "📸 FRAMEY pre-push 실행"
+echo "FRAMEY pre-push 실행"
 
 FULL_CHECK=false
 CHECK_COUNT=0
