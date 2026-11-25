@@ -355,7 +355,7 @@ jobs:
                   then "[\($i)] title 오류" else empty end),
                 (if ($v.severity // "") | IN("critical","major","minor") | not
                   then "[\($i)] severity 오류: \($v.severity)" else empty end),
-                (if ($v.category // "") | IN("architecture","domain","api","persistence","event","test") | not
+                (if ($v.category // "") | IN("architecture","domain","api","persistence","event","test","security","infra") | not
                   then "[\($i)] category 오류: \($v.category)" else empty end),
                 (if ($v.dedup_key|type) != "string"
                     or (($v.dedup_key // "") | test("^[a-zA-Z0-9_./:-]+$") | not)

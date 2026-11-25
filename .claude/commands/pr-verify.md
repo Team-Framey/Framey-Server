@@ -256,6 +256,8 @@ SonarCloud 결과를 미수집 상태로 간주한다.
 - persistence
 - event
 - test
+- security
+- infra
 
 ### dedup_key
 

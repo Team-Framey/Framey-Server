@@ -33,8 +33,12 @@ tasks.register('installGitHooks') {
 			if (value != '.githooks') {
 				def set = new ProcessBuilder('git', 'config', 'core.hooksPath', '.githooks')
 						.directory(rootDir).start()
-				set.waitFor()
-				logger.lifecycle('Git hooks 활성화: core.hooksPath=.githooks')
+				def exit = set.waitFor()
+				if (exit == 0) {
+					logger.lifecycle('Git hooks 활성화: core.hooksPath=.githooks')
+				} else {
+					logger.warn("Git hooks 설정 실패 (exit=${exit}): ${set.errorStream.text.trim()}")
+				}
 			}
 
 			hooksDir.listFiles()?.each { it.setExecutable(true) }
