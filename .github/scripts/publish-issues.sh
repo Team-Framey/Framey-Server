@@ -13,20 +13,15 @@ ISSUES_FILE="${ISSUES_FILE:-.analysis/issues.json}"
 LABEL="claude-review"
 FIX_LABEL="FIX"
 
-# Issue 제목 형식: "[CLAUDE-REVIEW] 요약"
 TITLE_PREFIX="[CLAUDE-REVIEW]"
-# 접두사를 제외한 요약 최대 길이 (초과 시 말줄임표로 요약)
 TITLE_MAX=60
 
-# PR 번호 검증
 if [[ ! "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
   echo "ERROR: Invalid PR_NUMBER: $PR_NUMBER"
   exit 1
 fi
 
 
-# 분석 대상 SHA (선택)
-#  같은 SHA의 재실행은 중복으로 건너뛰고 새 push(다른 SHA)에서 문제가 다시 확인되면 재오픈/댓글 처리
 SHA_SHORT=""
 SHA_TAG=""
 
@@ -90,7 +85,6 @@ fi
 
 echo "📋 게시 대상 이슈 수: ${count}개"
 echo "🔖 GitHub 라벨 확인"
-# 라벨 목록 조회 실패와 라벨 부재를 구분
 labels_file=$(mktemp)
 existing_file=$(mktemp)
 comments_file=$(mktemp)
@@ -106,8 +100,6 @@ if ! gh label list \
   exit 1
 fi
 
-# FIX 라벨 확인
-# 기존 프로젝트 라벨이므로 자동 생성하지 않음
 if ! jq -e \
   --arg name "$FIX_LABEL" \
   'any(.[]; .name == $name)' \
@@ -210,7 +202,6 @@ for ((i=0; i<count; i++)); do
     state=${existing#*$'\t'}
     echo "🔎 기존 이슈 발견: #${number}"
 
-    # Issue 본문에서 occurrence 확인
     if jq -e \
       --argjson number "$number" \
       --arg occurrence "$occurrence" \
@@ -223,8 +214,6 @@ for ((i=0; i<count; i++)); do
       continue
     fi
 
-    # Issue 댓글 조회
-    # API 조회 실패 시 중복 댓글이 생성되지않고 댓글 조회와 occurrence 검사를 분리
     if ! gh api \
       "repos/$REPO/issues/$number/comments?per_page=100" \
       --paginate --slurp \
@@ -236,7 +225,6 @@ for ((i=0; i<count; i++)); do
 
     fi
 
-    # 댓글 JSON 구조 검증
     if ! jq -e '
       type == "array" and
       all(.[];
@@ -249,7 +237,6 @@ for ((i=0; i<count; i++)); do
 
     fi
 
-    # 댓글에서 occurrence 확인
     if jq -e \
       --arg occurrence "$occurrence" \
       'any(.[][];
@@ -260,7 +247,6 @@ for ((i=0; i<count; i++)); do
 
     fi
 
-    # 닫힌 Issue 재오픈
     if [[ "$state" == "closed" ]]; then
 
       if [[ "$severity" == "critical" ||
@@ -276,7 +262,6 @@ for ((i=0; i<count; i++)); do
       fi
 
     fi
-    # 새로운 PR에서 재발견된 경우 댓글로 작성
     gh issue comment "$number" \
       --repo "$REPO" \
       --body "${occurrence}
@@ -315,7 +300,6 @@ ${body}
   fi
 
   echo "✅ 신규 이슈 생성 완료: #${new_number}"
-  # GitHub Issue 본문에 저장된 마커를 로컬 캐시에도 동일하게 반영
   jq \
     --argjson number "$new_number" \
     --arg marker "$marker" \

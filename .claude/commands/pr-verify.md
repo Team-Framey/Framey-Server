@@ -145,8 +145,7 @@ SonarCloud 결과를 미수집 상태로 간주한다.
 
 `.analysis/pr-${PR_NUMBER}-review.md`
 
-(이 파일은 워크플로우가 머지 후 `.claude/reports/`로 복사해 게시한다.
-직접 `.claude/` 아래에 쓰지 않는다.)
+`.claude/` 아래에는 직접 쓰지 않는다.
 
 보고서는 한국어 Markdown으로 작성한다.
 
