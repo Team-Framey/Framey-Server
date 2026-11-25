@@ -81,7 +81,7 @@ jobs:
 
       - name: Test Report
         if: ${{ !cancelled() && github.event.pull_request.head.repo.full_name == github.repository }}
-        uses: EnricoMi/publish-unit-test-result-action@v2
+        uses: EnricoMi/publish-unit-test-result-action@da5b7be67623cd59bbbd1a0ce4f022050a55605f # v2
         with:
           files: '**/build/test-results/**/*.xml'
           check_name: Test Results

@@ -390,7 +390,7 @@ jobs:
 
             [[ -z "$path" ]] && continue
 
-            if [[ "$path" == .claude/* ]]; then
+            if [[ "$path" == .claude/* || "$path" == "CLAUDE.md" ]]; then
               if [[ -e "$path" ]]; then
                 # 파일이 존재: base 버전과 내용이 같아야 허용
                 if git cat-file -e "${BASE_SHA}:${path}" 2>/dev/null &&
