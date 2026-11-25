@@ -14,6 +14,11 @@ ISSUES_FILE="${ISSUES_FILE:-.analysis/issues.json}"
 LABEL="claude-review"
 FIX_LABEL="FIX"
 
+# Issue 제목 형식: "[CLAUDE-REVIEW] 요약"
+TITLE_PREFIX="[CLAUDE-REVIEW]"
+# 접두사를 제외한 요약 최대 길이 (초과 시 말줄임표로 요약)
+TITLE_MAX=60
+
 # PR 번호 검증
 if [[ ! "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
   echo "ERROR: Invalid PR_NUMBER: $PR_NUMBER"
@@ -122,47 +127,7 @@ if ! jq -e \
 
 fi
 
-# ------------------------------------------
-# Severity 라벨 생성
-# ------------------------------------------
-
-for severity in critical major minor; do
-
-  sev_label="severity-${severity}"
-
-  if jq -e \
-    --arg name "$sev_label" \
-    'any(.[]; .name == $name)' \
-    "$labels_file" > /dev/null; then
-
-    continue
-
-  fi
-
-  case "$severity" in
-
-    critical)
-      color="D73A4A"
-      ;;
-
-    major)
-      color="FB8500"
-      ;;
-
-    minor)
-      color="F9D65C"
-      ;;
-
-  esac
-
-  gh label create "$sev_label" \
-    --repo "$REPO" \
-    --description "Claude review severity: $severity" \
-    --color "$color"
-
-  echo "Created label: $sev_label"
-
-done
+# severity 라벨은 사용하지 않는다. (FIX, claude-review 라벨만 부착)
 
 echo "🔎 기존 Claude Review Issue 조회"
 
@@ -190,9 +155,22 @@ echo "🔥 Issue 게시 시작"
 
 for ((i=0; i<count; i++)); do
 
+  # 제목 정규화
+  #  1) 줄바꿈 제거, 앞뒤 공백 제거
+  #  2) Claude가 이미 붙인 [CLAUDE-REVIEW] 접두사 제거
+  #  3) TITLE_MAX 초과 시 말줄임표로 요약
+  #  4) "[CLAUDE-REVIEW] 요약" 형식으로 조합
   title=$(jq -r \
     --argjson i "$i" \
-    '.[$i].title' "$ISSUES_FILE")
+    --arg prefix "$TITLE_PREFIX" \
+    --argjson max "$TITLE_MAX" '
+      .[$i].title
+      | gsub("[\\r\\n]+"; " ")
+      | gsub("^\\s+|\\s+$"; "")
+      | sub("^\\[CLAUDE-REVIEW\\]\\s*"; ""; "i")
+      | if length > $max then .[0:($max - 1)] + "…" else . end
+      | $prefix + " " + .
+    ' "$ISSUES_FILE")
 
   severity=$(jq -r \
     --argjson i "$i" \
@@ -363,14 +341,11 @@ Severity: ${severity}"
 
   echo "🚀 신규 Issue 생성"
 
-  sev_label="severity-${severity}"
-
   new_number=$(gh issue create \
     --repo "$REPO" \
     --title "$title" \
     --label "$FIX_LABEL" \
     --label "$LABEL" \
-    --label "$sev_label" \
     --body "${marker}
 ${occurrence}
 
