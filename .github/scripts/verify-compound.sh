@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
-
 #횐걍뱐수 설정
-echo "🔑 환경변수 전달"
+echo "🔑 필수 환경변수 확인"
 : "${GH_TOKEN:?GH_TOKEN is required}"
 : "${REPO:?REPO is required}"
 : "${PR_NUMBER:?PR_NUMBER is required}"
@@ -35,7 +34,7 @@ finish() {
   echo "result=${result}" >> "$OUTPUT_FILE"
 
   {
-    echo "## Compound Engineering 검증: ${result}"
+    echo "## Compound Engineering 검증 결과: ${result}"
     echo ""
     echo "- PR: #${PR_NUMBER}"
     echo "- 대상 Issue: ${CLAUDE_ISSUES:-없음}"
@@ -47,7 +46,7 @@ finish() {
     fi
   } >> "$SUMMARY_FILE"
 
-  echo "Compound Engineering result: ${result}"
+  echo "📝 Compound Engineering 검증 결과: ${result}"
 
   if ((${#reasons[@]} > 0)); then
     printf ' - %s\n' "${reasons[@]}"
@@ -95,7 +94,7 @@ for n in $candidates; do
 done
 
 if [[ -z "$CLAUDE_ISSUES" ]]; then
-  echo "claude-review Issue를 해결하지 않는 PR"
+  echo "검증 대상 claude-review 이슈가 없는 PR입니다."
   finish "not-applicable"
 fi
 
@@ -161,7 +160,7 @@ do
   fm=$(frontmatter "$file")
 
   if [[ -z "$fm" ]]; then
-    reasons+=("${file}: YAML frontmatter 없음")
+    reasons+=("${file}: YAML frontmatter 누락")
     continue
   fi
 
@@ -170,7 +169,7 @@ do
   for key in title category tags; do
     if [[ -z "$(scalar "$key" <<< "$fm")" ]] \
        && ! grep -Eq "^${key}:[[:space:]]*$" <<< "$fm"; then
-      reasons+=("${file}: frontmatter '${key}' 누락")
+      reasons+=("${file}: frontmatter 필수 항목'${key}' 누락")
       doc_ok=false
     fi
   done

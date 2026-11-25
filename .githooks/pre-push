@@ -3,7 +3,7 @@
 #ROOT_DIR="$(git rev-parse --show-toplevel)"
 #cd "$ROOT_DIR"
 
-echo "📸 FRAMEY pre-push 실행"
+echo "FRAMEY pre-push 실행"
 
 FULL_CHECK=false
 CHECK_COUNT=0
@@ -41,6 +41,31 @@ done
 if [ "$CHECK_COUNT" -eq 0 ]; then
   echo "➡️ 검사 대상 ref 없음 — 검증 생략"
   exit 0
+fi
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR" || exit 1
+
+# @SpringBootTest 는 실제 PostgreSQL 이 필요 — 로컬 테스트 DB 준비
+export TEST_DB_NAME="${TEST_DB_NAME:-framey_test}"
+export TEST_DB_USER="${TEST_DB_USER:-test}"
+export TEST_DB_PASSWORD="${TEST_DB_PASSWORD:-test12345}"
+
+if [ -z "${TEST_DB_URL:-}" ]; then
+  export TEST_DB_URL="jdbc:postgresql://localhost:5434/${TEST_DB_NAME}"
+
+  COMPOSE_FILE="framey-infrastructure/docker/local/docker-compose.test.yaml"
+
+  if ! command -v docker > /dev/null 2>&1 || ! docker info > /dev/null 2>&1; then
+    echo "⛔️ Docker 가 실행 중이 아닙니다. 테스트 DB 기동을 위해 Docker 를 실행해주세요."
+    exit 1
+  fi
+
+  echo "🐘 테스트 DB 기동 (localhost:5434)"
+  docker compose -f "$COMPOSE_FILE" up -d --wait postgres || {
+    echo "⛔️ 테스트 DB 기동 실패 — Push 중단"
+    exit 1
+  }
 fi
 
 if [ "$FULL_CHECK" = true ]; then

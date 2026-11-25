@@ -3,10 +3,13 @@
 #ROOT_DIR="$(git rev-parse --show-toplevel)"
 #cd "$ROOT_DIR"
 
-echo "📸 FRAMEY pre-commit 실행"
+echo "FRAMEY pre-commit 실행"
 
 echo "🚀 스테이징된 Java파일만 확인 중.. "
-mapfile -t CHANGED_FILES < <(
+CHANGED_FILES=()
+while IFS= read -r line; do
+  [ -n "$line" ] && CHANGED_FILES+=("$line")
+done < <(
   git diff --cached --name-only --diff-filter=ACMR |
   grep '\.java$' || true
 )
@@ -17,43 +20,49 @@ if [ ${#CHANGED_FILES[@]} -eq 0 ]; then
 fi
 
 # 중복 Gradle Task 방지
-declare -A TASK_MAP
+TASKS=()
+
+add_task() {
+  local t
+  for t in ${TASKS[@]+"${TASKS[@]}"}; do
+    [ "$t" = "$1" ] && return 0
+  done
+  TASKS+=("$1")
+}
 
 for file in "${CHANGED_FILES[@]}"; do
   case "$file" in
     framey-common/*)
-      TASK_MAP[":framey-common:checkstyleMain"]=1
+      add_task ":framey-common:checkstyleMain"
       ;;
     framey-web/*)
-      TASK_MAP[":framey-web:checkstyleMain"]=1
+      add_task ":framey-web:checkstyleMain"
       ;;
     framey-monitoring/*)
-      TASK_MAP[":framey-monitoring:checkstyleMain"]=1
+      add_task ":framey-monitoring:checkstyleMain"
       ;;
     framey-application/member-service/*)
-      TASK_MAP[":framey-application:member-service:checkstyleMain"]=1
+      add_task ":framey-application:member-service:checkstyleMain"
       ;;
     framey-application/collage-service/*)
-      TASK_MAP[":framey-application:collage-service:checkstyleMain"]=1
+      add_task ":framey-application:collage-service:checkstyleMain"
       ;;
     framey-application/archive-service/*)
-      TASK_MAP[":framey-application:archive-service:checkstyleMain"]=1
+      add_task ":framey-application:archive-service:checkstyleMain"
       ;;
   esac
 done
 
-if [ ${#TASK_MAP[@]} -eq 0 ]; then
+if [ ${#TASKS[@]} -eq 0 ]; then
   echo "☑️ 검사 대상 모듈 없음 ..."
   exit 0
 fi
-
-TASKS=("${!TASK_MAP[@]}")
 
 echo "⚠️ Checkstyle 검사 대상:"
 printf '  %s\n' "${TASKS[@]}"
 
 ./gradlew "${TASKS[@]}" --no-daemon || {
-  echo "⛔️Checkstyle 실패 — 커밋 중단 (상세: build/reports/checkstyle/)"
+  echo "⛔️ Checkstyle 실패 — 커밋 중단 (상세: build/reports/checkstyle/)"
   exit 1
 }
 echo "🔥 pre-commit 통과"

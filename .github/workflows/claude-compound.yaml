@@ -1,5 +1,6 @@
-#  PR 댓글에 "@claude compound"  가 포함된 경우에 실행
-name: Claude Compound (PR comment)
+# PR 댓글에 "@claude compound" 입력 시 실행
+name: Claude Compound
+
 on:
   issue_comment:
     types: [created]
@@ -28,12 +29,10 @@ jobs:
       REPO: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.issue.number }}
       BASE_BRANCH: dev
-      # Compound 기록 규칙 문서 위치 (BASE_BRANCH 기준). 다른 경로면 수정
       RULES_FILE: COMPOUND_ENGINEERING.md
 
     steps:
-
-      # 실행 대상 확인
+      # 실행 대상 검증
       - name: Guard
         id: guard
         run: |
@@ -55,19 +54,22 @@ jobs:
             echo "head_ref=$head_ref"
           } >> "$GITHUB_OUTPUT"
 
-      # 토큰은 .git/config 에 남기지 않는다 (Claude 가 읽을 수 없게). push 는 별도 단계에서 직접 인증
-      - name: Checkout PR head
+          echo "✅ PR #${PR_NUMBER} 실행 대상 검증 완료"
+
+      # PR 코드 체크아웃 (인증 정보 저장 방지)
+      - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ steps.guard.outputs.head_sha }}
           fetch-depth: 0
           persist-credentials: false
 
-      # Claude 가 읽을 자료 수집 (모두 "읽기 전용 자료")
-      - name: Collect context
+      # 분석 자료 수집
+      - name: Context
         run: |
-          echo "📝 Claude 가 읽을 자료 수집 ■■■■■□□□ "
           set -euo pipefail
+
+          echo "🔎 PR #${PR_NUMBER} 분석 자료 수집"
 
           mkdir -p .compound-context
           printf '%s\n' '.compound-context/' 'base/' >> .git/info/exclude
@@ -76,10 +78,9 @@ jobs:
             --json number,title,body,headRefName,baseRefName \
             > .compound-context/pr.json
 
-          # API 의 diff 줄 수 제한을 피하려고 로컬 git 으로 계산 (PR 과 동일한 3-dot 비교)
           git diff "origin/${BASE_BRANCH}...HEAD" > .compound-context/pr.diff
 
-          # 기록 규칙은 항상 base 브랜치의 최신본을 사용 (PR 브랜치가 오래돼도 안전)
+          # 기록 규칙은 base 브랜치 기준으로 조회
           if ! git show "origin/${BASE_BRANCH}:${RULES_FILE}" \
                  > .compound-context/COMPOUND_ENGINEERING.md 2>/dev/null; then
             gh pr comment "$PR_NUMBER" --repo "$REPO" \
@@ -96,11 +97,13 @@ jobs:
           )
 
           found=false
+
           for n in $nums; do
             if gh api "repos/$REPO/issues/$n" > ".compound-context/issue-$n.json" 2>/dev/null \
                && jq -e '(has("pull_request") | not) and any(.labels[]; .name == "claude-review")' \
                     ".compound-context/issue-$n.json" > /dev/null; then
               found=true
+              echo "✅ 연결된 리뷰 Issue: #${n}"
             else
               rm -f ".compound-context/issue-$n.json"
             fi
@@ -112,17 +115,16 @@ jobs:
             exit 1
           fi
 
-      - name: Claude 실행 안내
-        run: echo "✽ Claude 실행중 ■■■■■□□□"
+          echo "✅ 분석 자료 수집 완료"
 
-      #  Claude 실행 (파일 작성만 가능, Bash 불가)
-      - name: Run Claude
+      # Claude Compound 기록 생성
+      - name: Claude
         id: claude
         uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1.0.276
-
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ github.token }}
+
           prompt: |
             PR #${{ github.event.issue.number }} 의 Compound Engineering 기록을 작성하세요.
 
@@ -172,11 +174,13 @@ jobs:
             --max-turns 25
             --allowedTools "Read,Write,Edit,Grep,Glob"
 
-      #  변경 경로 검사 후 허용 경로만 커밋 (push 전에 검사)
-      - name: Commit allowed changes
+      # 허용된 경로만 커밋
+      - name: Commit
         id: commit
         run: |
           set -euo pipefail
+
+          echo "✅ Claude 변경 파일 검증"
 
           allowed='^(claude-review-docs/plans/.+\.md|claude-review-docs/solutions/.+\.md|CLAUDE\.md|\.claude/skills/.+/SKILL\.md)$'
 
@@ -194,17 +198,22 @@ jobs:
           if ((${#bad[@]} > 0)); then
             printf '%s\n' "${bad[@]}" > "$RUNNER_TEMP/bad-paths.txt"
             echo "result=rejected" >> "$GITHUB_OUTPUT"
-            echo "허용되지 않은 경로 변경:"
+            echo "::error::허용되지 않은 경로 변경"
             printf ' - %s\n' "${bad[@]}"
             exit 0
           fi
 
           if ((${#good[@]} == 0)); then
             echo "result=nochange" >> "$GITHUB_OUTPUT"
+            echo "✅ 커밋할 변경 사항 없음"
             exit 0
           fi
 
+          echo "📁 커밋 대상 파일: ${#good[@]}개"
+          printf ' - %s\n' "${good[@]}"
+
           git add -- "${good[@]}"
+
           git \
             -c user.name="github-actions[bot]" \
             -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
@@ -215,48 +224,64 @@ jobs:
             echo "sha=$(git rev-parse HEAD)"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Report rejected paths
+          echo "📤 Compound 기록 커밋 완료"
+
+      # 허용되지 않은 변경 사항 안내
+      - name: Reject
         if: steps.commit.outputs.result == 'rejected'
         run: |
           set -euo pipefail
+
           {
             echo "⚠️ Claude 가 허용되지 않은 경로를 수정해서 아무것도 커밋하지 않았습니다."
             echo "허용 경로: \`claude-review-docs/plans/**\`, \`claude-review-docs/solutions/**\`, \`CLAUDE.md\`, \`.claude/skills/**/SKILL.md\`"
             echo ""
             sed 's/^/- `/; s/$/`/' "$RUNNER_TEMP/bad-paths.txt"
           } > "$RUNNER_TEMP/rejected.md"
+
           gh pr comment "$PR_NUMBER" --repo "$REPO" --body-file "$RUNNER_TEMP/rejected.md"
           exit 1
 
-      - name: Push to PR branch
+      # PR 브랜치에 변경 사항 반영
+      - name: Push
         if: steps.commit.outputs.result == 'committed'
         env:
           PUSH_TOKEN: ${{ secrets.COMPOUND_PUSH_TOKEN || github.token }}
           HEAD_REF: ${{ steps.guard.outputs.head_ref }}
         run: |
-          echo "🎋 PR 브렌치에 Push"
           set -euo pipefail
+
+          echo "✏️ PR 브랜치에 Compound 기록 반영: $HEAD_REF"
+
           git push \
             "https://x-access-token:${PUSH_TOKEN}@${GITHUB_SERVER_URL#https://}/${REPO}.git" \
             "HEAD:refs/heads/${HEAD_REF}"
 
-      # 5. 같은 job 에서 바로 검증 + 배지 갱신 + 요약 댓글
-      - name: Wait for PR head update
+          echo "🚀 Push 완료"
+
+      - name: Wait for PR
         if: steps.commit.outputs.result == 'committed'
         env:
           PUSHED_SHA: ${{ steps.commit.outputs.sha }}
         run: |
           set -euo pipefail
+
           for _ in {1..12}; do
             current=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.head.sha')
-            [[ "$current" == "$PUSHED_SHA" ]] && exit 0
+
+            if [[ "$current" == "$PUSHED_SHA" ]]; then
+              echo "✅ PR 갱신 확인 완료"
+              exit 0
+            fi
+
             sleep 5
           done
-          echo "PR head 가 갱신되지 않았습니다" >&2
+
+          echo "::error::PR 갱신 시간 초과"
           exit 1
 
-      # 검증기는 PR 이 아니라 base 브랜치의 것을 사용 (PR 이 검증기를 바꾸지 못하게)
-      - name: Checkout verifier from base
+      # 검증 스크립트는 base 브랜치 기준으로 사용
+      - name: Checkout Verifier
         if: steps.commit.outputs.result != 'rejected'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -264,22 +289,27 @@ jobs:
           path: base
           persist-credentials: false
 
-      - name: Verify records
+      - name: Verify
         id: verify
         if: steps.commit.outputs.result != 'rejected'
         run: |
           set -euo pipefail
+
+          echo "⚠️ Compound 기록 검증"
           bash base/.github/scripts/verify-compound.sh
 
-      - name: Update PR badge
+      - name: Badge
         if: steps.verify.outputs.result != ''
         env:
           RESULT: ${{ steps.verify.outputs.result }}
         run: |
           set -euo pipefail
+
+          echo "🏷️ PR 배지 갱신: $RESULT"
           bash base/.github/scripts/update-compound-badge.sh
 
-      - name: Post summary comment
+      # PR에 실행 결과 및 요약 게시
+      - name: Summary
         if: steps.verify.outputs.result != ''
         env:
           RESULT: ${{ steps.verify.outputs.result }}
@@ -292,12 +322,12 @@ jobs:
           : > "$out"
 
           case "$COMMIT_RESULT" in
-            committed) echo "Compound 기록을 커밋했습니다: \`${PUSHED_SHA:0:7}\`" >> "$out" ;;
-            *)         echo "새로 만들거나 수정할 파일이 없어 커밋하지 않았습니다." >> "$out" ;;
+            committed) echo "✅ Compound 기록을 커밋했습니다: \`${PUSHED_SHA:0:7}\`" >> "$out" ;;
+            *)         echo "⚠️ 새로 만들거나 수정할 파일이 없어 커밋하지 않았습니다." >> "$out" ;;
           esac
 
           echo "" >> "$out"
-          echo "검증 결과: **${RESULT}** ([실행 요약](${GITHUB_SERVER_URL}/${REPO}/actions/runs/${GITHUB_RUN_ID}))" >> "$out"
+          echo "📝 검증 결과: **${RESULT}** ([실행 요약](${GITHUB_SERVER_URL}/${REPO}/actions/runs/${GITHUB_RUN_ID}))" >> "$out"
 
           if [[ -s .compound-context/summary.md ]]; then
             {
@@ -314,7 +344,9 @@ jobs:
 
           gh pr comment "$PR_NUMBER" --repo "$REPO" --body-file "$out"
 
-      - name: Report failure
+          echo "📤 PR 요약 댓글 게시 완료"
+
+      - name: Failure
         if: failure() && steps.claude.outcome != 'skipped' && steps.commit.outputs.result != 'rejected'
         run: |
           gh pr comment "$PR_NUMBER" --repo "$REPO" \

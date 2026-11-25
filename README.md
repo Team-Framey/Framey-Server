@@ -19,7 +19,7 @@
 
 ### 🧑🏻‍💻 Contributors - Developers
 
-| <a href="https://github.com/young0311"><img src="https://github.com/young0311.png" width="100" height="100"></a> | <a href="https://github.com/nimuseel"><img src="https://github.com/nimuseel.png" width="100" height="100"></a> | <a href="https://github.com/hwannn123"><img src="https://github.com/hwannn123.png" width="100" height="100"></a> |
+| <a href="https://github.com/young0311"><img src="https://github.com/young0311.png" width="120" height="120"></a> | <a href="https://github.com/nimuseel"><img src="https://github.com/nimuseel.png" width="120" height="120"></a> | <a href="https://github.com/hwannn123"><img src="https://github.com/hwannn123.png" width="120" height="120"></a> |
 |:---:|:---:|:---:|
 | **양화영 (Lead)** | **이수민** | **김환희** |
 
@@ -39,7 +39,7 @@
 | 실행 | Skills (`.claude/skills/*`) / Commands (`.claude/commands/*`) | Skills: API·도메인·영속성·서비스 간 통신 설계 규칙. Commands: `new-api`, `add-error-code`, `deploy-check`, `pr-verify` 등 실행형 작업 |
 | 로컬 Harness | `.githooks/pre-commit` · `pre-push` | pre-commit: staged Java 모듈 Checkstyle 검증. pre-push: dev/main 대상 `clean check` 전체 실행. 위반 시 push 차단 |
 | Remote Harness (PR 단계) | GitHub Actions `pr-ci` · CodeRabbit | `gradle build`(Checkstyle · ArchUnit · 테스트 · Jacoco) + Sonar Quality Gate. 병합 전 차단 가능 |
-| Review-Feedback Loop (병합 후) | `claude-architecture-review` | 병합 커밋 기준 아키텍처 사후 검증 → `.claude/reviews/pr-[N]-review.md` 커밋 + `claude-review` Issue 자동 개시(dedup marker로 중복 방지). 배포는 막지 않음 |
+| Review-Feedback Loop (병합 후) | `claude-architecture-review` | 병합 커밋 기준 아키텍처 사후 검증 → `.claude/reports/pr-[N]-review.md` 커밋 + `claude-review` Issue 자동 개시(dedup marker로 중복 방지). 배포는 막지 않음 |
 | Compounding Layer | `@claude compound` · `verify-compound.sh` | 해결 기록(`claude-review-docs/solutions`)을 남기고, 재사용 가능한 규칙을 `CLAUDE.md` / `SKILL.md`로 승격해 다음 판단에 반영 |
 
 #### 

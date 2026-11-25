@@ -1,14 +1,9 @@
-#-------------------------------------------
-#PR 생성/수정 →
-# 코드 가져오기 → 검증 스크립트 실행 → 결과(pass/fail/not-applicable) → 배지 붙이기/떼기
-#-------------------------------------------
+# PR의 Compound Engineering 기록 검증 및 배지 갱신
+name: Compound Badge
 
-name: Compound Engineering Badge
-#PR에 올라온 Compound Engineering 기록이 규칙에 맞는지 자동으로 검사하고, 통과한 PR에만 배지를 붙이는 워크플로우
 on:
   pull_request:
     branches: [dev]
-    # pr 처음생성시, 새 커밋 push, 수정, pr 재오픈시
     types: [opened, synchronize, reopened, edited]
 
 concurrency:
@@ -22,10 +17,9 @@ permissions:
 
 jobs:
   verify:
-    name: Verify Compound Engineering
     runs-on: ubuntu-latest
 
-    # fork PR은 GITHUB_TOKEN이 읽기 전용이라 배지 갱신 불가
+    # fork PR은 배지 갱신 권한이 없어 제외
     if: github.event.pull_request.head.repo.full_name == github.repository
 
     env:
@@ -34,21 +28,25 @@ jobs:
       GH_TOKEN: ${{ github.token }}
 
     steps:
-
-      - name: Checkout PR merge ref
+      - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
 
-      - name: Verify records
+      - name: Verify
         id: verify
         run: |
           set -euo pipefail
+
+          echo "🔎 PR #${PR_NUMBER} Compound Engineering 기록 검증"
           bash .github/scripts/verify-compound.sh
 
-      - name: Update PR badge
+      - name: Badge
         env:
           RESULT: ${{ steps.verify.outputs.result }}
         run: |
           set -euo pipefail
+
+          echo "📋 검증 결과: $RESULT"
+          echo "🔖 PR 배지 갱신"
           bash .github/scripts/update-compound-badge.sh

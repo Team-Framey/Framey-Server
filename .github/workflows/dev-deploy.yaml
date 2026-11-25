@@ -2,11 +2,10 @@ name: Dev Deploy
 
 on:
   push:
-    #dev 브렌치
     branches: [dev]
-    #claude 리뷰 폴더 문서 ignore
+    # Claude 리뷰 보고서 변경 시 배포 제외
     paths-ignore:
-      - '.claude/reviews/**'
+      - '.claude/reports/**'
 
 concurrency:
   group: dev-deploy
@@ -14,11 +13,10 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy to DEV EC2
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to DEV EC2
+      - name: Deploy
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
 
         env:
@@ -32,13 +30,14 @@ jobs:
           key: ${{ secrets.DEV_EC2_SSH_KEY }}
 
           envs: DEV_DB_URL,DEV_DB_USER,DEV_DB_PASSWORD
-
           command_timeout: 30m
 
           script: |
             set -e
-            echo "======================================="
-            echo "FRAMEY DEV DEPLOYMENT"
-            echo "Commit: ${{ github.sha }}"
-            echo "======================================="
+
+            echo "🚀 FRAMEY DEV 환경 배포 시작"
+            echo "📦 배포 대상 커밋: ${{ github.sha }}"
+
             /opt/framey/bin/deploy-dispatch.sh ${{ github.sha }}
+
+            echo "✅ FRAMEY DEV 환경 배포 완료"

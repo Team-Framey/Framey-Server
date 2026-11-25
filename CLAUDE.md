@@ -32,9 +32,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `docker compose -f framey-infrastructure/docker/local/docker-compose.local.yaml down` — 종료
 
 ### Git Hooks (`.githooks/`)
-- `git config core.hooksPath .githooks` — 최초 1회 설정 (팀원 온보딩 필수, 로컬 설정이라 자동 전파 안 됨)
-- `pre-commit`: staged `.java` 파일이 속한 모듈만 `checkstyleMain` 실행 (test 코드는 검사 안 함). **bash 4+ 문법 사용 (`mapfile`, `declare -A`) — macOS는 `brew install bash` 필요**
-- `pre-push`: `dev`/`main` push 시 `./gradlew clean check` 전체 검증, 기타 브랜치는 `check`
+- 설정 자동화: Gradle `installGitHooks` 태스크가 `core.hooksPath=.githooks`를 설정한다 (모든 모듈 `compileJava` 전에 실행, `.git` 없으면 건너뜀). 수동: `./gradlew installGitHooks` 또는 `git config core.hooksPath .githooks`
+- `pre-commit`: staged `.java` 파일이 속한 모듈만 `checkstyleMain` 실행 (test 코드는 검사 안 함). bash 3.2(macOS 기본)에서도 동작하도록 `mapfile`/`declare -A` 미사용
+- `pre-push`: `dev`/`main` push 시 `./gradlew clean check` 전체 검증, 기타 브랜치는 `check`. `TEST_DB_URL`이 없으면 `docker-compose.test.yaml`로 테스트 DB(localhost:5434)를 자동 기동하고 `TEST_DB_*` 기본값(`framey_test`/`test`/`test12345`)을 주입한다 — Docker 실행 필요
 - 우회: `git commit --no-verify` / `git push --no-verify` (긴급 시에만)
 
 
@@ -154,12 +154,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Claude Architecture Review (`.github/workflows/claude-architecture-review.yaml`)
 - **트리거**: `dev` 대상 PR `closed` + `merged == true` — 병합 후 사후 검증 (배포 차단 아님)
 - **분석 기준**: 최신 dev가 아닌 해당 PR의 `merge_commit_sha` 체크아웃
-- **구조**: 3개 job — `analyze`(read 권한, Claude 분석 + 출력 스키마 검증 + artifact 저장) → `publish-report`(dev에 보고서 커밋, 최대 5회 재시도) / `publish-issues`(중복 제거 후 Issue 게시)
+- **구조**: 3개 job — `analyze`(read 권한, Claude 분석 + 출력 스키마 검증 + artifact 저장) → `publish-report`(GitHub App 토큰으로 dev에 보고서 커밋·push, 최대 5회 재시도) / `publish-issues`(`GITHUB_TOKEN`으로 중복 제거 후 Issue 게시)
+- **보고서 push**: `actions/create-github-app-token`으로 Framey Report Bot 토큰 발급 → ruleset bypass 등록으로 dev 직접 push 허용. checkout에 App 토큰 사용, 커밋 author는 `{app-slug}[bot]`
+- **출력 검증**: `issues.json` 스키마 검증 + 추적 파일 변경 검사. `.claude/*`·`CLAUDE.md`는 `base.sha`/`merge_commit_sha` 중 하나와 일치할 때만 허용(액션의 설정 복원 대응), `.analysis/` 외 새 파일은 실패
 - **분석 프롬프트**: `.claude/commands/pr-verify.md` — 입력은 `.analysis/`(PR diff, CodeRabbit 리뷰, SonarCloud 이슈, 기존 Issue), 출력은 보고서 + `issues.json` 두 파일로 제한
-- **보고서**: `.claude/reviews/pr-{N}-review.md` — 동일 경로 덮어쓰기로 재실행 시 갱신
+- **보고서**: `.claude/reports/pr-{N}-review.md` — 동일 경로 덮어쓰기로 재실행 시 갱신
 - **Issue 중복 제거**: `.github/scripts/publish-issues.sh` — 본문 `<!-- claude-dedup: KEY -->` 마커로 동일 문제 식별. open이면 재발견 댓글, closed면 critical/major만 재오픈, `claude-occurrence` 마커로 동일 PR 댓글 중복 방지
 - **동시성**: `concurrency: claude-analysis-pr-{N}`로 동일 PR 직렬화
-- **필요 시크릿**: `ANTHROPIC_API_KEY` (외에 `GITHUB_TOKEN`, `SONAR_TOKEN` 사용)
+- **필요 시크릿**: `ANTHROPIC_API_KEY`, `REPORT_APP_ID`, `REPORT_APP_PRIVATE_KEY` (외에 `GITHUB_TOKEN`, `SONAR_TOKEN` 사용)
 
 ### Compound Engineering (`.github/workflows/compound-engineering-badge.yaml`)
 Claude가 만든 `claude-review` Issue를 해결하면서 해결 지식을 저장소에 축적하는 흐름. 배지는 결과 표시일 뿐, 핵심은 기록의 재사용이다.
@@ -196,7 +198,7 @@ Claude가 만든 `claude-review` Issue를 해결하면서 해결 지식을 저�
 
 ### Branch Flow
 - feature/* → dev (PR: CodeRabbit 리뷰 + CI + SonarCloud Quality Gate) → 병합 시 dev 자동 배포 + Claude 사후 아키텍처 검증
-- Claude 검증 보고서 커밋(`.claude/reviews/**`만 변경)은 `paths-ignore`로 dev 배포를 트리거하지 않는다
+- Claude 검증 보고서 커밋(`.claude/reports/**`만 변경)은 `paths-ignore`로 dev 배포를 트리거하지 않는다
 - `main`은 배포 워크플로우 없음 — 프로덕션 배포 정책은 별도 정의 필요
 
 

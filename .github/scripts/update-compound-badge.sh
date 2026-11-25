@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "🔑 필수 환경변수 확인"
 : "${GH_TOKEN:?GH_TOKEN is required}"
 : "${REPO:?REPO is required}"
 : "${PR_NUMBER:?PR_NUMBER is required}"
@@ -63,13 +64,15 @@ find_anchor() {
   done <<< "$stripped"
 }
 
+echo "📋 Compound Engineering 검증 결과: $RESULT"
 if [[ "$RESULT" == "pass" ]]; then
 
   if [[ "$current" == *"$BLOCK"* ]]; then
-    echo "Badge unchanged"
+    echo "⚠️ 기존 Compound Engineering 배지 유지"
     exit 0
   fi
 
+  echo "🔎 배지 삽입 위치 확인"
   anchor=$(find_anchor)
 
   if [[ -z "$stripped" ]]; then
@@ -93,7 +96,7 @@ if [[ "$RESULT" == "pass" ]]; then
 else
 
   if [[ "$current" != *"$START"* ]]; then
-    echo "No badge to remove"
+    echo "⚠️제거할 Compound Engineering 배지가 없습니다."
     exit 0
   fi
   updated="$stripped"
@@ -101,6 +104,8 @@ else
 fi
 
 # REST 로 본문 갱신 (gh pr edit 의 GraphQL/projects 이슈 회피)
+echo "📝 PR 본문 갱신: #${PR_NUMBER}"
+
 body_file=$(mktemp)
 trap 'rm -f "$body_file"' EXIT
 
@@ -108,4 +113,12 @@ printf '%s\n' "$updated" > "$body_file"
 jq -n --rawfile body "$body_file" '{body: $body}' \
   | gh api --method PATCH "repos/$REPO/pulls/$PR_NUMBER" --input - > /dev/null
 
-echo "Badge updated (result=$RESULT)"
+
+
+echo "========================================"
+if [[ "$RESULT" == "pass" ]]; then
+  echo "✅ Compound Engineering 배지 적용 완료"
+else
+  echo "🗑️ Compound Engineering 배지 제거 완료 (검증 결과: $RESULT)"
+fi
+echo "========================================"
