@@ -18,10 +18,9 @@
 ![k6](https://img.shields.io/badge/k6-7D64FF?logo=k6&logoColor=white)
 
 ### 🧑🏻‍💻 Contributors - Developers
-
-| <a href="https://github.com/young0311"><img src="https://github.com/young0311.png" width="120" height="120"></a> | <a href="https://github.com/nimuseel"><img src="https://github.com/nimuseel.png" width="120" height="120"></a> | <a href="https://github.com/hwannn123"><img src="https://github.com/hwannn123.png" width="120" height="120"></a> |
-|:---:|:---:|:---:|
-| **양화영 (Lead)** | **이수민** | **김환희** |
+| <a href="https://github.com/young0311"><img src="https://github.com/young0311.png" width="120" height="120"></a> |
+|:---:|
+| **양화영 (Lead)** |
 
 ### Claude Architecture
 > Claude Code를 단순 코드 생성 도구가 아닌 팀의 코드 품질 루프에 통합된 에이전트로 운영합니다
